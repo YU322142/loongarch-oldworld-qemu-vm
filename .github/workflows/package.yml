@@ -1,0 +1,66 @@
+name: Package LoongArch old-world QEMU VM launcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package or release version, for example qemu-vm-20260608
+        required: true
+        default: qemu-vm-20260608
+      create_release:
+        description: Create or update a GitHub Release with the package
+        type: boolean
+        required: true
+        default: false
+  push:
+    tags:
+      - qemu-vm-*
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package scripts and documentation
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "value=${{ inputs.version }}" >> $env:GITHUB_OUTPUT
+          } else {
+            "value=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          .\scripts\Package-Release.ps1 -Version "${{ steps.version.outputs.value }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: loongarch-oldworld-${{ steps.version.outputs.value }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Create or update release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.version.outputs.value }}"
+          $title = "LoongArch old-world QEMU VM launcher $tag"
+          $notes = "docs\release-notes\qemu-vm-20260608.release.md"
+          if (gh release view $tag 2>$null) {
+            gh release upload $tag dist\*.zip --clobber
+          } else {
+            gh release create $tag dist\*.zip --title $title --notes-file $notes
+          }

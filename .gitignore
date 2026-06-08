@@ -1,0 +1,23 @@
+# Generated VM state
+/images/*.qcow2
+/images/*.qcow2.md5
+/images/*.qcow2.sha256
+/firmware/*-work.fd
+/logs/*
+!/logs/README.md
+
+# Optional local QEMU installation copied into the repo folder
+/tools/qemu/
+
+# User test payloads
+/shared/*
+!/shared/README.md
+
+# Build output
+/dist/
+/tmp/
+
+# Local/editor files
+.DS_Store
+Thumbs.db
+*.log
