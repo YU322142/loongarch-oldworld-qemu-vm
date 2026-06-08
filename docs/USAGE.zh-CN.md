@@ -78,10 +78,18 @@ qemu-system-loongarch64.exe was not found
 .\scripts\Download-LoongnixImage.ps1
 ```
 
-脚本会下载 Loongnix Desktop mini qcow2，校验 MD5/SHA256，并创建：
+脚本会默认使用 64 路 HTTP Range 并发下载 Loongnix Desktop mini qcow2，校验 MD5/SHA256，并创建：
 
 ```text
 images\loongnix-abi1-work.qcow2
+```
+
+下载线程数可以按网络情况修改，取值范围是 `1` 到 `64`。如果网络或代理不稳定，可以降到 `16` 或 `8`；如果服务器不支持 HTTP Range，脚本会自动退回单连接下载：
+
+```powershell
+.\scripts\Download-LoongnixImage.ps1 -Connections 16
+.\scripts\Download-LoongnixImage.ps1 -Connections 8 -DownloadRetries 5
+.\scripts\Download-LoongnixImage.ps1 -Connections 1
 ```
 
 这个工作盘会保存系统设置、安装的软件和测试状态。不要把它提交到 Git。
