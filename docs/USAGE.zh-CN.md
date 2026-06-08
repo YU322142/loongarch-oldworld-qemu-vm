@@ -283,12 +283,13 @@ shared\setup-loongnix-test-desktop.sh
 ```bash
 mkdir -p /mnt/hostshare
 mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+mountpoint /mnt/hostshare
 ls /mnt/hostshare
 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 systemctl reboot
 ```
 
-如果 `/dev/vdb1` 和 `/dev/vdb` 都不是共享盘，先用 `lsblk` 查看新增磁盘，再替换成正确设备。实测 QEMU 的 `fat:rw` 共享盘通常显示为 `vdb` 磁盘和 `vdb1` 分区，优先挂载 `/dev/vdb1`。FAT 共享盘上的脚本不一定有可执行权限，所以推荐用 `sh 脚本路径` 运行。
+如果 `mountpoint /mnt/hostshare` 提示 `not a mountpoint`，说明 `/mnt/hostshare` 只是普通空目录，还没有挂载成功。先用 `lsblk` 找到共享盘，再重新挂载。实测 QEMU 的 `fat:rw` 共享盘通常显示为 `vdb` 磁盘和 `vdb1` 分区，优先挂载 `/dev/vdb1`。FAT 共享盘上的脚本不一定有可执行权限，所以推荐用 `sh 脚本路径` 运行。
 
 常用自定义方式：
 
@@ -698,27 +699,73 @@ shared\OpenRemoteShouter-linux-loongarch64-oldworld-abi1.0.tar.gz
 
 如果虚拟机已经启动，FAT 共享盘通常仍能看到新文件；如果没有看到，可以在虚拟机里重新挂载或重启虚拟机。
 
-## 7. 在虚拟机中挂载共享盘
+## 7. 在虚拟机中挂载共享硬盘
 
-打开 Loongnix 桌面终端，查看磁盘：
+共享硬盘由启动脚本通过 QEMU `fat:rw` 暴露给 guest。默认情况下，宿主机目录是项目根目录下的：
+
+```text
+shared\
+```
+
+如果启动时传了 `-SharePath`，则以 `-SharePath` 指定的目录为准。可以在 Windows 宿主机查看当前 QEMU 启动命令，确认实际挂载的是哪个目录：
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.Name -like 'qemu-system-loongarch64*' } |
+  Select-Object -ExpandProperty CommandLine
+```
+
+命令里会出现类似下面的片段：
+
+```text
+file=fat:rw:D:/Down/loongarch-oldworld-qemu-vm-20260608/shared
+```
+
+先把待传入 guest 的文件放进这个 Windows 目录，再启动 QEMU。打开 Loongnix 桌面终端或 SSH，切到 root：
+
+```bash
+su -
+```
+
+查看 guest 里的磁盘：
 
 ```bash
 lsblk
 ```
 
-如果共享盘没有自动挂载，通常可以这样挂载：
+常见输出中，系统盘是 `vda`，共享硬盘是额外出现的 `vdb`，通常带一个 `vdb1` 分区。挂载前先确认 `/mnt/hostshare` 当前是不是挂载点：
 
 ```bash
 mkdir -p /mnt/hostshare
+mountpoint /mnt/hostshare || echo not-mounted
+```
+
+如果显示 `not-mounted`，执行挂载：
+
+```bash
 mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+mountpoint /mnt/hostshare
 ls /mnt/hostshare
 ```
 
-挂载命令需要 root 权限。如果你当前是 `loongson` 用户，先执行 `su -` 切到 root。
+看到 `setup-loongnix-test-desktop.sh`、`README.md`、`pic.png` 或你放进去的测试包，才表示共享硬盘已经挂载到正确目录。
 
-如果 `/dev/vdb1` 和 `/dev/vdb` 都不是共享盘，根据 `lsblk` 输出选择另一个新增磁盘。实测常见输出是 `vdb` 下面有一个 `vdb1` 分区，此时挂载 `/dev/vdb1`。
+如果 `/dev/vdb1` 和 `/dev/vdb` 都不是共享硬盘，根据 `lsblk` 输出选择另一个新增磁盘。可以先看文件系统类型辅助判断：
 
-注意：QEMU 的 `fat:rw` 共享盘更适合在启动虚拟机前放文件。虚拟机运行中从 Windows 侧新增的文件不一定会立刻出现在 guest 里；如果 `ls /mnt/hostshare` 看不到新文件，重启虚拟机或重新启动 QEMU 后再检查。
+```bash
+blkid /dev/vdb1 /dev/vdb 2>/dev/null || true
+```
+
+如果 `/mnt/hostshare` 目录存在但 `ls /mnt/hostshare` 是空的，不要直接认为共享盘为空。先运行：
+
+```bash
+mountpoint /mnt/hostshare
+mount | grep hostshare || true
+```
+
+如果不是挂载点，重新执行上面的 `mount -t vfat ...`。如果已经是挂载点但仍看不到 Windows 侧刚放进去的新文件，关闭 QEMU，确认文件已经在 Windows 的 `shared\` 目录里，再重新启动 QEMU 后挂载。QEMU 的 `fat:rw` 共享硬盘不适合依赖运行中热刷新。
+
+不建议直接从共享 FAT 盘运行大型应用；共享盘主要用于传文件，运行测试前先复制到 guest 本地磁盘。
 
 ## 8. 复制到虚拟机本地磁盘
 

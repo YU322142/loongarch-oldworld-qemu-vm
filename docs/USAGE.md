@@ -283,12 +283,13 @@ If the VM stops at `tty1`, log in as `root` / `Loongson20`, mount the shared dis
 ```bash
 mkdir -p /mnt/hostshare
 mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+mountpoint /mnt/hostshare
 ls /mnt/hostshare
 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 systemctl reboot
 ```
 
-If neither `/dev/vdb1` nor `/dev/vdb` is the shared disk, run `lsblk` and replace it with the correct device. In testing, QEMU's `fat:rw` shared disk usually appears as a `vdb` disk with a `vdb1` partition, so mount `/dev/vdb1` first. The script on the FAT shared disk may not have executable permission, so use `sh path/to/script`.
+If `mountpoint /mnt/hostshare` says `not a mountpoint`, `/mnt/hostshare` is only a normal empty directory and the shared disk is not mounted yet. Use `lsblk` to find the shared disk and mount it again. In testing, QEMU's `fat:rw` shared disk usually appears as a `vdb` disk with a `vdb1` partition, so mount `/dev/vdb1` first. The script on the FAT shared disk may not have executable permission, so use `sh path/to/script`.
 
 Useful customizations:
 
@@ -698,27 +699,73 @@ shared\OpenRemoteShouter-linux-loongarch64-oldworld-abi1.0.tar.gz
 
 If the VM is already running, the FAT shared disk usually sees new files. If not, remount inside the guest or restart the VM.
 
-## 7. Mount The Shared Disk In The Guest
+## 7. Mount The Shared Hard Disk In The Guest
 
-Open a Loongnix desktop terminal and inspect disks:
+The shared hard disk is exposed by the launch script through QEMU `fat:rw`. By default, the Windows host directory is:
+
+```text
+shared\
+```
+
+If startup used `-SharePath`, that directory is used instead. On the Windows host, you can check the running QEMU command line to confirm the actual shared directory:
+
+```powershell
+Get-CimInstance Win32_Process |
+  Where-Object { $_.Name -like 'qemu-system-loongarch64*' } |
+  Select-Object -ExpandProperty CommandLine
+```
+
+Look for a fragment like:
+
+```text
+file=fat:rw:D:/Down/loongarch-oldworld-qemu-vm-20260608/shared
+```
+
+Place files into that Windows directory before starting QEMU. Then open a Loongnix desktop terminal or SSH session and switch to root:
+
+```bash
+su -
+```
+
+Inspect disks in the guest:
 
 ```bash
 lsblk
 ```
 
-If the shared disk is not mounted automatically:
+The system disk is normally `vda`. The shared hard disk is usually the extra `vdb` disk, often with a `vdb1` partition. Before mounting, check whether `/mnt/hostshare` is already a mount point:
 
 ```bash
 mkdir -p /mnt/hostshare
+mountpoint /mnt/hostshare || echo not-mounted
+```
+
+If it prints `not-mounted`, mount the shared disk:
+
+```bash
 mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+mountpoint /mnt/hostshare
 ls /mnt/hostshare
 ```
 
-Mounting requires root privileges. If you are currently the `loongson` user, run `su -` first.
+Seeing `setup-loongnix-test-desktop.sh`, `README.md`, `pic.png`, or your test package means the shared hard disk is mounted at the correct directory.
 
-If neither `/dev/vdb1` nor `/dev/vdb` is the shared disk, choose the newly added disk shown by `lsblk`. The common tested output is a `vdb` disk containing a `vdb1` partition; in that case mount `/dev/vdb1`.
+If neither `/dev/vdb1` nor `/dev/vdb` is the shared disk, choose the newly added disk shown by `lsblk`. You can also inspect filesystem metadata:
 
-Note: QEMU's `fat:rw` shared disk is best used by placing files on the host before starting the VM. Files added from Windows while the VM is already running may not appear immediately in the guest; if `ls /mnt/hostshare` does not show a new file, reboot the VM or restart QEMU and check again.
+```bash
+blkid /dev/vdb1 /dev/vdb 2>/dev/null || true
+```
+
+If `/mnt/hostshare` exists but `ls /mnt/hostshare` is empty, do not assume the shared disk itself is empty. First run:
+
+```bash
+mountpoint /mnt/hostshare
+mount | grep hostshare || true
+```
+
+If it is not a mount point, rerun the `mount -t vfat ...` command above. If it is mounted but still does not show files recently added from Windows, close QEMU, confirm the files are already in the Windows `shared\` directory, start QEMU again, and mount it again. QEMU's `fat:rw` shared hard disk should not be treated as a reliable live-refresh folder.
+
+Do not run large applications directly from the shared FAT disk. Use it for transfer, then copy the test package to the guest local disk before running it.
 
 ## 8. Copy To The Guest Local Disk
 
