@@ -19,6 +19,12 @@ This project is intended to provide a manually observable LoongArch old-world te
 
 The Loongnix Desktop mini image may first stop at `tty1`. That does not mean the launcher failed; it means the guest still needs graphical desktop setup. Continue with the first-run workflow in the [full usage guide](docs/USAGE.md).
 
+## Known Notes
+
+- Do not maximize the QEMU window while the VM is still booting. During firmware, GRUB, kernel loading, or desktop initialization, maximizing the visible window has been observed to make QEMU or the guest display stop responding.
+- Avoid maximizing or resizing the QEMU window while the desktop session is running. Window-size changes have been observed to offset mouse click positions, which affects button, menu, and tray-icon acceptance. Keep the startup window size fixed while testing.
+- Loongnix X11 Test Desktop is a lightweight test session and does not provide a full desktop right-click wallpaper UI. This repository includes `shared\pic.png`; the one-shot setup script uses it as the default image wallpaper. The wallpaper may only become visible after dragging a window fully across the desktop area to trigger a repaint. More details are in the [full usage guide](docs/USAGE.md#55-optional-set-the-test-desktop-wallpaper).
+
 ## Important Boundaries
 
 This repository only contains open-source scripts and documentation. The following items are not part of this repository and are not included in source packages or Release packages:

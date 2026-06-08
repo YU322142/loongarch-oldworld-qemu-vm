@@ -43,4 +43,4 @@ SHA256 c960ce8718ce7c8fecd442059ba845b9edc9f0abf90e930b04711f109bf6737c
 
 ## 用户测试软件
 
-`shared/` 中的 `setup-loongnix-test-desktop.sh` 是本仓库 MIT 许可下的开源配置脚本，会提交并进入 Release。其它放入 `shared/` 的内容只用于宿主机和虚拟机交换文件，默认不提交。ClassIsland、OpenRemoteShouter、原生库构建产物等测试包应按它们各自仓库的许可证和 Release 方式发布。
+`shared/` 中的 `setup-loongnix-test-desktop.sh` 是本仓库 MIT 许可下的开源配置脚本，会提交并进入 Release。`shared/pic.png` 是本仓库随附的默认测试桌面壁纸，会提交并进入 Release，用于验证透明窗口和桌面背景重绘行为。其它放入 `shared/` 的内容只用于宿主机和虚拟机交换文件，默认不提交。ClassIsland、OpenRemoteShouter、原生库构建产物等测试包应按它们各自仓库的许可证和 Release 方式发布。

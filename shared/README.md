@@ -8,6 +8,7 @@ Most folder contents are ignored by Git so user test payloads are not committed.
 Tracked helper:
 
 - `setup-loongnix-test-desktop.sh`: run inside the Loongnix guest as root to configure SSH, Chinese locale, LightDM, Loongnix X11 Test Desktop, `xfwm4` compositing, Xfce panel StatusNotifier/systray support, LXTerminal, Xfe file manager, audio tools, and notification support.
+- `pic.png`: default wallpaper used by `setup-loongnix-test-desktop.sh`. Replace this file before mounting the shared disk if you want a different default wallpaper.
 
 Example inside the guest after mounting the shared disk:
 
@@ -25,5 +26,6 @@ systemctl reboot
 - 启动虚拟机后，本目录默认会作为额外 FAT/virtio 磁盘暴露给 Loongnix。
 - 在虚拟机里推荐挂载到 `/mnt/hostshare`；实测通常是 `/dev/vdb1`，没有分区时再用 `/dev/vdb`。
 - 虚拟机运行时从 Windows 新增的文件不一定会立刻刷新到 guest；最好在启动虚拟机前把脚本和测试包放好。
-- `setup-loongnix-test-desktop.sh` 是一键配置脚本，需要在虚拟机内用 root 执行；它会配置带合成器和托盘宿主的 Loongnix X11 Test Desktop。
+- `setup-loongnix-test-desktop.sh` 是一键配置脚本，需要在虚拟机内用 root 执行；它会配置带合成器和托盘宿主的 Loongnix X11 Test Desktop，并默认使用本目录的 `pic.png` 作为图片壁纸。
+- 壁纸设置后可能需要把一个窗口完整拖过桌面区域触发重绘，图片才会显示出来。
 - 其它放进来的测试包、日志和临时文件默认不会提交到 Git。

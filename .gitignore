@@ -13,6 +13,7 @@
 /shared/*
 !/shared/README.md
 !/shared/setup-loongnix-test-desktop.sh
+!/shared/pic.png
 
 # Build output
 /dist/

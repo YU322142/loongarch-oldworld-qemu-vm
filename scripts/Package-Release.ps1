@@ -49,7 +49,7 @@ $Files = Get-ChildItem -LiteralPath $Root -Recurse -File -Force | Where-Object {
     }
 
     if ($Normalized.StartsWith("shared\", [System.StringComparison]::OrdinalIgnoreCase)) {
-        return ($Normalized -eq "shared\README.md" -or $Normalized -eq "shared\setup-loongnix-test-desktop.sh")
+        return ($Normalized -eq "shared\README.md" -or $Normalized -eq "shared\setup-loongnix-test-desktop.sh" -or $Normalized -eq "shared\pic.png")
     }
 
     if ($Normalized.StartsWith("logs\", [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -80,7 +80,7 @@ It intentionally excludes:
 - QEMU binaries and firmware
 - Loongnix qcow2 images
 - writable VM work disks
-- user test packages in shared/; the tracked guest setup helper is included
+- user test packages in shared/; the tracked guest setup helper and default wallpaper are included
 - logs and screenshots
 
 Fetch third-party assets with scripts/Install-Qemu-Windows.ps1 and scripts/Download-LoongnixImage.ps1.

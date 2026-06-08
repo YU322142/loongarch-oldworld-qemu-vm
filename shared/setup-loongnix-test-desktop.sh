@@ -9,6 +9,7 @@
 #   SET_CHINESE=1        generate zh_CN.UTF-8 locale and set system language; set 0 to skip
 #   RESTART_LIGHTDM=1    start/restart LightDM at the end; set 0 to skip
 #   REBOOT_AFTER=0       set 1 to reboot automatically after configuration
+#   WALLPAPER_SOURCE=    source image path; default is pic.png next to this script
 
 set -e
 
@@ -18,6 +19,8 @@ SET_CHINESE="${SET_CHINESE:-1}"
 RESTART_LIGHTDM="${RESTART_LIGHTDM:-1}"
 REBOOT_AFTER="${REBOOT_AFTER:-0}"
 SESSION_NAME="loongnix-test"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WALLPAPER_SOURCE="${WALLPAPER_SOURCE:-$SCRIPT_DIR/pic.png}"
 
 log() {
     printf '%s\n' "==> $*"
@@ -43,6 +46,7 @@ if [ -z "$USER_HOME" ] || [ ! -d "$USER_HOME" ]; then
     exit 1
 fi
 USER_GROUP="$(id -gn "$TEST_USER")"
+WALLPAPER_TARGET="$USER_HOME/Pictures/loongnix-test-wallpaper.png"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -131,6 +135,17 @@ EOF
     fi
 fi
 
+if [ -f "$WALLPAPER_SOURCE" ]; then
+    log "Installing wallpaper helper and copying $WALLPAPER_SOURCE"
+    apt-get install -y feh || warn "Could not install feh; the session will fall back to a solid background"
+    mkdir -p "$USER_HOME/Pictures"
+    cp "$WALLPAPER_SOURCE" "$WALLPAPER_TARGET"
+    chown "$TEST_USER:$USER_GROUP" "$WALLPAPER_TARGET"
+else
+    warn "Wallpaper source was not found: $WALLPAPER_SOURCE"
+    warn "Put a PNG image at shared\\pic.png before mounting the shared disk if you want an image wallpaper"
+fi
+
 log "Enabling SSH service"
 systemctl enable ssh >/dev/null 2>&1 || true
 systemctl restart ssh >/dev/null 2>&1 || systemctl start ssh >/dev/null 2>&1 || warn "Could not start ssh.service"
@@ -201,7 +216,16 @@ pkill -x tint2 >/dev/null 2>&1 || true
 pkill -x stalonetray >/dev/null 2>&1 || true
 pkill -x xcompmgr >/dev/null 2>&1 || true
 
-command -v xsetroot >/dev/null 2>&1 && xsetroot -solid '#d8e0e5' || true
+set_solid_background() {
+    command -v xsetroot >/dev/null 2>&1 && xsetroot -solid '#d8e0e5' || true
+}
+
+if command -v feh >/dev/null 2>&1 && [ -f "$HOME/Pictures/loongnix-test-wallpaper.png" ]; then
+    feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png" >/dev/null 2>&1 || set_solid_background
+else
+    set_solid_background
+fi
+command -v xrefresh >/dev/null 2>&1 && xrefresh >/dev/null 2>&1 || true
 command -v pulseaudio >/dev/null 2>&1 && pulseaudio --start >/dev/null 2>&1 || true
 
 if [ -x /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd ]; then
@@ -308,6 +332,8 @@ log "Configuration summary"
 printf '%s\n' "User: $TEST_USER"
 printf '%s\n' "Autologin: $AUTOLOGIN"
 printf '%s\n' "Chinese locale: $SET_CHINESE"
+printf '%s\n' "Wallpaper source: $WALLPAPER_SOURCE"
+printf '%s\n' "Wallpaper installed: $(if [ -f "$WALLPAPER_TARGET" ]; then printf yes; else printf no; fi)"
 printf '%s\n' "Desktop session: $SESSION_NAME"
 printf '%s\n' "Default target: $(systemctl get-default 2>/dev/null || printf unknown)"
 printf '%s\n' "Display manager: $(readlink /etc/systemd/system/display-manager.service 2>/dev/null || printf missing)"

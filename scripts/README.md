@@ -24,6 +24,8 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
 ```
 
+`Start-Loongnix-Desktop.ps1` 默认会等到 QEMU 窗口关闭才返回；需要启动后立即回到 PowerShell 时传 `-NoWait`。
+
 ## English
 
 | Script | Purpose |
@@ -47,3 +49,5 @@ If QEMU is not in `tools\qemu`, `C:\Program Files\qemu`, `C:\Program Files (x86)
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
 ```
+
+`Start-Loongnix-Desktop.ps1` waits until the QEMU window closes by default; pass `-NoWait` to return to PowerShell immediately after launch.

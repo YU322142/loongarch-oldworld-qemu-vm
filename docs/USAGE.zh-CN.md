@@ -149,6 +149,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 | `-Snapshot` | 临时运行，退出后丢弃磁盘改动。 |
 | `-NoHostShare` | 禁用宿主机共享盘。 |
 | `-NoAudio` | 禁用虚拟声卡。 |
+| `-NoWait` | 启动 QEMU 后让 PowerShell 立即返回；默认会等待 QEMU 窗口关闭。 |
 
 默认会开启：
 
@@ -157,6 +158,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 - DirectSound + Intel HDA 声音。
 - 宿主机 `shared\` 共享盘。
 - SSH 端口转发 `127.0.0.1:2222 -> guest:22`。
+
+启动过程中不要最大化 QEMU 窗口。实测在固件、GRUB、内核加载或桌面初始化阶段最大化可见窗口，可能导致 QEMU 或 guest 画面无响应。建议保持脚本打开时的默认窗口大小，等进入 LightDM 登录器或 Loongnix X11 Test Desktop 并稳定显示后，再继续操作。如果已经卡住，关闭 QEMU 窗口后重新启动；必要时用 `-Snapshot` 做临时测试，避免启动阶段误操作影响工作盘状态。
+
+桌面环境运行过程中也不建议最大化或拖动缩放 QEMU 窗口。实测 SDL 窗口大小变化后可能导致鼠标点击位置偏移，表现为光标看起来在按钮、菜单或托盘图标上，但实际点击落在其它位置。进行托盘、菜单、按钮和窗口拖拽验收时，请保持启动后的固定窗口大小；如果已经出现偏移，先尝试把窗口恢复到原大小，仍不正常就关闭 QEMU 后重新启动。
+
+启动后 PowerShell 没有立刻返回是正常行为：默认脚本会一直等待 QEMU 窗口关闭。需要启动后立即回到 PowerShell 时使用：
+
+```powershell
+.\scripts\Start-Loongnix-Desktop.ps1 -NoWait
+```
+
+串口日志可能停在 `Loading Linux ...` 或 `Loading initial ramdisk ...` 附近，因为 GRUB 已经把控制权交给 Linux；此时继续看可见 QEMU 窗口，不要只按串口日志判断是否卡住。
 
 登录 Loongnix：
 
@@ -250,11 +263,12 @@ shared\setup-loongnix-test-desktop.sh
 它会在 Loongnix 内完成下面这些操作：
 
 - 启用 SSH 服务。
-- 安装 X11、LightDM、`xfwm4` 合成窗口管理器、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、声音工具和通知支持。
+- 安装 X11、LightDM、`xfwm4` 合成窗口管理器、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、`feh` 壁纸工具、声音工具和通知支持。
 - 生成 `zh_CN.UTF-8` locale，安装中文字体，并把系统默认语言尽量切到中文。
 - 把时区设置为 `Asia/Shanghai`。
 - 配置 LightDM 默认进入 `loongnix-test` 会话，并建立 `display-manager.service` 链接，避免重启后只停在 `tty1`。
 - 默认启用 `loongson` 自动登录，方便反复测试。
+- 默认把共享目录中的 `pic.png` 复制为 `loongson` 用户壁纸，并在会话启动时用 `feh` 设置；如果没有 `pic.png`，则回退到纯色背景。
 
 如果虚拟机停在 `tty1`，先用 `root` / `Loongson20` 登录，然后挂载共享盘并运行脚本：
 
@@ -277,11 +291,14 @@ AUTOLOGIN=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 # 不修改系统语言
 SET_CHINESE=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 
+# 使用其它壁纸文件
+WALLPAPER_SOURCE=/mnt/hostshare/other.png sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+
 # 配置完成后自动重启
 REBOOT_AFTER=1 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 ```
 
-脚本执行完并重启后，QEMU 窗口应进入 Loongnix X11 Test Desktop；默认能看到 Xfce panel 托盘、LXTerminal 和 Xfe 文件管理器。这个会话使用 `xfwm4 --compositor=on`，用于覆盖 ClassIsland 这类 Avalonia 透明窗口；托盘同时提供 StatusNotifier 和传统 systray。脚本执行失败或你想调整安装内容时，继续按下面的手动教程操作。
+脚本执行完并重启后，QEMU 窗口应进入 Loongnix X11 Test Desktop；默认能看到 Xfce panel 托盘、LXTerminal 和 Xfe 文件管理器。这个会话使用 `xfwm4 --compositor=on`，用于覆盖 ClassIsland 这类 Avalonia 透明窗口；托盘同时提供 StatusNotifier 和传统 systray。图片壁纸有时不会立刻重绘出来，需要把 LXTerminal 或 Xfe 窗口完整拖过桌面区域后才会显示。脚本执行失败或你想调整安装内容时，继续按下面的手动教程操作。
 
 ### 5.3 诊断桌面组件是否已安装
 
@@ -337,16 +354,16 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、`xfwm4`、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、通知支持、中文字体、locale 工具和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、透明窗口合成、声音、通知、托盘图标和图形文件浏览验收：
+推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、`xfwm4`、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、`feh` 壁纸工具、通知支持、中文字体、locale 工具和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、透明窗口合成、声音、通知、托盘图标、壁纸重绘和图形文件浏览验收：
 
 可以先模拟安装，确认依赖能解析：
 
 ```bash
-apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin lxterminal xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin lxterminal xfe feh xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe feh xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 配置中文系统语言、中文字体缓存和中国时区：
@@ -420,7 +437,16 @@ pkill -x tint2 >/dev/null 2>&1 || true
 pkill -x stalonetray >/dev/null 2>&1 || true
 pkill -x xcompmgr >/dev/null 2>&1 || true
 
-xsetroot -solid '#d8e0e5' || true
+set_solid_background() {
+    xsetroot -solid '#d8e0e5' || true
+}
+
+if command -v feh >/dev/null 2>&1 && [ -f "$HOME/Pictures/loongnix-test-wallpaper.png" ]; then
+    feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png" || set_solid_background
+else
+    set_solid_background
+fi
+xrefresh >/dev/null 2>&1 || true
 pulseaudio --start &
 if [ -x /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd ]; then
     /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd &
@@ -550,17 +576,63 @@ apt-cache search xfe
 如果下载过程中遇到单个包临时失败，可以先重试：
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe feh xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 实测当前 Loongnix 源中，`pcmanfm` 没有候选版本，`xfce4` 元包会因为 `xfce4-settings` 依赖的主题包不可安装而失败，`lxde` 元包会引用没有候选版本的 `lxpanel/pcmanfm`，`caja` 会拉入较重的 MATE 依赖。因此默认使用 Xfe；如果要复查其它文件管理器可用性：
 
 ```bash
 apt-cache policy lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin lxde lxpanel lxterminal pcmanfm
-apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
+apt-cache policy xfe feh thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 
-### 5.5 可选：安装 KDE/Plasma 完整桌面
+### 5.5 可选：设置测试桌面壁纸
+
+Loongnix X11 Test Desktop 是轻量测试会话，不启动 `xfdesktop` 或 `pcmanfm` 这类桌面管理器，因此桌面右键菜单里通常没有完整壁纸设置。本仓库默认提交 `shared\pic.png`，一键配置脚本会在 guest 中把它复制到：
+
+```text
+/home/loongson/Pictures/loongnix-test-wallpaper.png
+```
+
+并在 Loongnix X11 Test Desktop 启动时执行：
+
+```bash
+feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png"
+```
+
+如果要换默认壁纸，在 Windows 宿主机启动虚拟机或重新挂载共享盘前，把新图片覆盖为：
+
+```text
+shared\pic.png
+```
+
+然后重新运行一键配置脚本，或手动在 guest 中复制：
+
+```bash
+su -
+mkdir -p /home/loongson/Pictures
+cp /mnt/hostshare/pic.png /home/loongson/Pictures/loongnix-test-wallpaper.png
+chown loongson:loongson /home/loongson/Pictures/loongnix-test-wallpaper.png
+exit
+```
+
+回到 `loongson` 桌面终端后临时应用图片壁纸：
+
+```bash
+feh --bg-fill ~/Pictures/loongnix-test-wallpaper.png
+```
+
+临时改成纯色背景，在桌面终端中运行：
+
+```bash
+xsetroot -solid '#2f343f'
+```
+
+如果壁纸设置后仍然看到旧背景或纯色背景，把 LXTerminal 或 Xfe 窗口完整拖过桌面区域一次，触发 X11 根窗口重绘后通常就会显示。这个现象是当前轻量会话的已知行为，不代表 `pic.png` 没有复制成功。
+
+如果只是为了观察 Avalonia 透明窗口、阴影和边缘，纯色背景更容易定位边缘问题；图片壁纸适合复查透明区域、合成效果和桌面背景重绘。
+
+### 5.6 可选：安装 KDE/Plasma 完整桌面
 
 如果你想测试更完整的 KDE/Plasma 桌面行为，可以安装 `sddm`、`plasma-desktop`、`konsole`、`dolphin`。它功能更完整，但下载和安装量明显更大，不作为本方案的默认推荐。
 
@@ -574,7 +646,7 @@ systemctl reboot
 
 实测 Loongnix 源中这些 KDE 包存在；但一次完整 KDE 安装下载量接近 500 MB，网络不稳定时更容易中断。
 
-### 5.6 为什么不能只在 tty 或 SSH 中验收
+### 5.7 为什么不能只在 tty 或 SSH 中验收
 
 ClassIsland、OpenRemoteShouter 这类 Avalonia/X11 软件必须在真实 X11 桌面会话里验收。至少需要检查：
 
@@ -726,6 +798,18 @@ OpenRemoteShouter 这类远程/音频应用建议额外测试：
 ### QEMU 窗口打开了，但很慢
 
 这是正常的。Windows/x86 主机模拟 LoongArch 只能使用 TCG。建议把应用复制到虚拟机本地磁盘后运行，并减少后台程序。
+
+### 启动过程中最大化 QEMU 窗口后卡住
+
+不要在固件、GRUB、内核加载或桌面初始化阶段最大化 QEMU 窗口。实测此时改变 SDL 窗口大小可能导致 QEMU 或 guest 画面无响应。等进入 LightDM 或 Loongnix X11 Test Desktop 后再调整窗口；如果已经卡住，关闭 QEMU 窗口并重新启动。
+
+### 鼠标点击位置和光标位置不一致
+
+如果在桌面运行过程中最大化 QEMU 窗口或拖动窗口边缘改变大小，可能出现鼠标点击位置偏移。表现为光标指向按钮、菜单项或托盘图标，但实际点击落点不在光标位置。验收 ClassIsland/OpenRemoteShouter 这类桌面应用时，建议保持 QEMU 启动后的固定窗口大小；已经偏移时，先恢复原窗口大小，仍不正常就关闭 QEMU 并重新启动后再测试鼠标交互。
+
+### 设置了图片壁纸但桌面仍是纯色
+
+当前轻量会话不启动完整桌面管理器，图片壁纸可能不会立刻触发整屏重绘。确认 `/home/loongson/Pictures/loongnix-test-wallpaper.png` 存在后，把 LXTerminal 或 Xfe 窗口完整拖过桌面区域一次；通常拖过的区域会刷新出 `shared\pic.png` 设置的壁纸。
 
 ### 没声音
 

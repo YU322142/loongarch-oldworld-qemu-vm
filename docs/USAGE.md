@@ -149,6 +149,7 @@ Common parameters:
 | `-Snapshot` | Temporary run; disk changes are discarded on exit. |
 | `-NoHostShare` | Disable the host shared disk. |
 | `-NoAudio` | Disable virtual audio. |
+| `-NoWait` | Return to PowerShell immediately after starting QEMU; by default the script waits until the QEMU window closes. |
 
 Default features:
 
@@ -157,6 +158,18 @@ Default features:
 - DirectSound + Intel HDA audio.
 - Host `shared\` folder as a guest disk.
 - SSH port forwarding `127.0.0.1:2222 -> guest:22`.
+
+Do not maximize the QEMU window while the VM is still booting. During firmware, GRUB, kernel loading, or desktop initialization, maximizing the visible window has been observed to make QEMU or the guest display stop responding. Keep the default window size until LightDM or Loongnix X11 Test Desktop is visible and stable, then continue. If it already hangs, close the QEMU window and start again; use `-Snapshot` for temporary tests if you want to avoid boot-time mistakes affecting the work disk.
+
+Avoid maximizing or resizing the QEMU window while the desktop session is running. SDL window-size changes have been observed to offset mouse click positions: the pointer may appear over a button, menu item, or tray icon, while the actual click lands elsewhere. Keep the startup window size fixed for tray, menu, button, and window-drag acceptance. If the pointer is already offset, first restore the original window size; if it remains wrong, close QEMU and start again.
+
+It is normal for PowerShell not to return immediately after startup. By default, the script waits until the QEMU window closes. To return to PowerShell immediately after launch, use:
+
+```powershell
+.\scripts\Start-Loongnix-Desktop.ps1 -NoWait
+```
+
+The serial log may stop around `Loading Linux ...` or `Loading initial ramdisk ...` after GRUB hands control to Linux. Continue by watching the visible QEMU window instead of judging boot progress only from the serial log.
 
 Log in to Loongnix:
 
@@ -250,11 +263,12 @@ shared\setup-loongnix-test-desktop.sh
 Inside Loongnix, it performs these actions:
 
 - Enables SSH.
-- Installs X11, LightDM, the `xfwm4` compositing window manager, Xfce panel, StatusNotifier/systray tray plugins, LXTerminal, the Xfe graphical file manager, audio tools, and notification support.
+- Installs X11, LightDM, the `xfwm4` compositing window manager, Xfce panel, StatusNotifier/systray tray plugins, LXTerminal, the Xfe graphical file manager, the `feh` wallpaper helper, audio tools, and notification support.
 - Generates the `zh_CN.UTF-8` locale, installs Chinese fonts, and sets the system language to Chinese where possible.
 - Sets the time zone to `Asia/Shanghai`.
 - Configures LightDM to use the `loongnix-test` session by default and creates the `display-manager.service` link so reboot does not stop at `tty1`.
 - Enables `loongson` autologin by default for faster repeated testing.
+- Copies `pic.png` from the shared directory into the `loongson` user's wallpaper path and applies it with `feh` during session startup; if `pic.png` is missing, the session falls back to a solid background.
 
 If the VM stops at `tty1`, log in as `root` / `Loongson20`, mount the shared disk, and run:
 
@@ -277,11 +291,14 @@ AUTOLOGIN=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 # Do not change the system language.
 SET_CHINESE=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 
+# Use another wallpaper file.
+WALLPAPER_SOURCE=/mnt/hostshare/other.png sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+
 # Reboot automatically after configuration.
 REBOOT_AFTER=1 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 ```
 
-After the script completes and the VM reboots, the QEMU window should enter Loongnix X11 Test Desktop. By default, the Xfce panel tray, LXTerminal, and Xfe file manager should be visible. This session uses `xfwm4 --compositor=on` to cover Avalonia transparent windows, and the tray provides both StatusNotifier and traditional systray support. If the script fails or you want to customize the setup, continue with the manual path below.
+After the script completes and the VM reboots, the QEMU window should enter Loongnix X11 Test Desktop. By default, the Xfce panel tray, LXTerminal, and Xfe file manager should be visible. This session uses `xfwm4 --compositor=on` to cover Avalonia transparent windows, and the tray provides both StatusNotifier and traditional systray support. The image wallpaper may not repaint immediately; drag LXTerminal or Xfe fully across the desktop area if the wallpaper does not appear at first. If the script fails or you want to customize the setup, continue with the manual path below.
 
 ### 5.3 Check Whether Desktop Components Are Installed
 
@@ -337,16 +354,16 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-Install X11, D-Bus, audio tools, OpenSSH, LightDM, `xfwm4`, Xfce panel, StatusNotifier/systray tray plugins, LXTerminal, the Xfe graphical file manager, notification support, Chinese fonts, locale tools, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, transparent window compositing, windows, audio, notifications, tray icon acceptance, and graphical file browsing:
+Install X11, D-Bus, audio tools, OpenSSH, LightDM, `xfwm4`, Xfce panel, StatusNotifier/systray tray plugins, LXTerminal, the Xfe graphical file manager, the `feh` wallpaper helper, notification support, Chinese fonts, locale tools, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, transparent window compositing, windows, audio, notifications, tray icon acceptance, wallpaper repainting, and graphical file browsing:
 
 You can simulate the install first to confirm that dependencies resolve:
 
 ```bash
-apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin lxterminal xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin lxterminal xfe feh xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe feh xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 Configure Chinese locale, Chinese font cache, and the China time zone:
@@ -420,7 +437,16 @@ pkill -x tint2 >/dev/null 2>&1 || true
 pkill -x stalonetray >/dev/null 2>&1 || true
 pkill -x xcompmgr >/dev/null 2>&1 || true
 
-xsetroot -solid '#d8e0e5' || true
+set_solid_background() {
+    xsetroot -solid '#d8e0e5' || true
+}
+
+if command -v feh >/dev/null 2>&1 && [ -f "$HOME/Pictures/loongnix-test-wallpaper.png" ]; then
+    feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png" || set_solid_background
+else
+    set_solid_background
+fi
+xrefresh >/dev/null 2>&1 || true
 pulseaudio --start &
 if [ -x /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd ]; then
     /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd &
@@ -550,17 +576,63 @@ apt-cache search xfe
 If one package download fails temporarily, retry with:
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe feh xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 In the tested Loongnix repositories, `pcmanfm` has no candidate version, the `xfce4` meta package fails because theme packages required by `xfce4-settings` are not installable, the `lxde` meta package references `lxpanel/pcmanfm` packages with no candidate version, and `caja` pulls a heavier MATE dependency set. The default path therefore uses Xfe. To re-check other file managers:
 
 ```bash
 apt-cache policy lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin lxde lxpanel lxterminal pcmanfm
-apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
+apt-cache policy xfe feh thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 
-### 5.5 Optional: Install Full KDE/Plasma Desktop
+### 5.5 Optional: Set The Test Desktop Wallpaper
+
+Loongnix X11 Test Desktop is a lightweight test session. It does not start a desktop manager such as `xfdesktop` or `pcmanfm`, so the desktop right-click menu usually does not provide a full wallpaper UI. This repository tracks `shared\pic.png` by default. The one-shot setup script copies it in the guest to:
+
+```text
+/home/loongson/Pictures/loongnix-test-wallpaper.png
+```
+
+and runs this when Loongnix X11 Test Desktop starts:
+
+```bash
+feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png"
+```
+
+To replace the default wallpaper, overwrite this file on the Windows host before starting the VM or remounting the shared disk:
+
+```text
+shared\pic.png
+```
+
+Then rerun the one-shot setup script, or copy it manually inside the guest:
+
+```bash
+su -
+mkdir -p /home/loongson/Pictures
+cp /mnt/hostshare/pic.png /home/loongson/Pictures/loongnix-test-wallpaper.png
+chown loongson:loongson /home/loongson/Pictures/loongnix-test-wallpaper.png
+exit
+```
+
+Back in the `loongson` desktop terminal, apply it temporarily:
+
+```bash
+feh --bg-fill ~/Pictures/loongnix-test-wallpaper.png
+```
+
+To temporarily switch to a solid color, run from the desktop terminal:
+
+```bash
+xsetroot -solid '#2f343f'
+```
+
+If the old or solid background is still visible after setting the wallpaper, drag LXTerminal or Xfe fully across the desktop area once. That usually triggers an X11 root-window repaint and makes the wallpaper appear. This is a known behavior of the current lightweight session and does not mean `pic.png` failed to copy.
+
+For checking Avalonia transparent windows, shadows, and edges, a solid background makes edge issues easier to spot. Image wallpapers are useful for re-checking transparency, compositor behavior, and desktop repainting.
+
+### 5.6 Optional: Install Full KDE/Plasma Desktop
 
 If you want to test fuller KDE/Plasma desktop behavior, install `sddm`, `plasma-desktop`, `konsole`, and `dolphin`. It is more feature-complete, but the download and install size is much larger, so it is not the default recommendation for this test VM.
 
@@ -574,7 +646,7 @@ systemctl reboot
 
 The tested Loongnix repositories provide these KDE packages, but a full KDE install downloads nearly 500 MB and is more likely to be interrupted on an unstable network.
 
-### 5.6 Why tty Or SSH Is Not Enough
+### 5.7 Why tty Or SSH Is Not Enough
 
 Avalonia/X11 applications such as ClassIsland and OpenRemoteShouter must be accepted in a real X11 desktop session. At minimum, check:
 
@@ -726,6 +798,18 @@ By default, this creates a qcow2 backing work disk, which is faster and smaller.
 ### QEMU Opens But Is Slow
 
 This is expected. LoongArch on a Windows/x86 host uses TCG emulation. Copy the app to the guest local disk before running it and reduce host background load.
+
+### QEMU Hangs After Maximizing During Boot
+
+Do not maximize the QEMU window during firmware, GRUB, kernel loading, or desktop initialization. Changing the SDL window size at that stage has been observed to make QEMU or the guest display stop responding. Resize the window only after LightDM or Loongnix X11 Test Desktop is visible; if it already hangs, close the QEMU window and start again.
+
+### Mouse Clicks Do Not Match The Pointer Position
+
+Maximizing the QEMU window or dragging its edges while the desktop is running can offset mouse click positions. The pointer may appear over a button, menu item, or tray icon, but the actual click lands elsewhere. When accepting desktop apps such as ClassIsland or OpenRemoteShouter, keep the QEMU startup window size fixed. If clicks are already offset, restore the original window size first; if that does not help, close QEMU and start again before testing mouse interactions.
+
+### Image Wallpaper Is Set But The Desktop Is Still Solid Color
+
+The lightweight session does not start a full desktop manager, so the image wallpaper may not trigger a full-screen repaint immediately. After confirming that `/home/loongson/Pictures/loongnix-test-wallpaper.png` exists, drag LXTerminal or Xfe fully across the desktop area once. The area covered by the window should repaint and show the wallpaper from `shared\pic.png`.
 
 ### No Audio
 

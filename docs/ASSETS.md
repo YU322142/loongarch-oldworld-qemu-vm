@@ -43,4 +43,4 @@ For reproducible testing, publish:
 
 ## User Test Software
 
-`shared/setup-loongnix-test-desktop.sh` is an MIT-licensed helper from this repository and is included in Git and Release packages. Other files placed under `shared/` are only for host/guest transfer and are ignored by default. Test packages such as ClassIsland, OpenRemoteShouter, and native library builds should be published under their own repository licenses and Release processes.
+`shared/setup-loongnix-test-desktop.sh` is an MIT-licensed helper from this repository and is included in Git and Release packages. `shared/pic.png` is the repository-provided default test desktop wallpaper and is included in Git and Release packages for transparent-window and desktop repaint testing. Other files placed under `shared/` are only for host/guest transfer and are ignored by default. Test packages such as ClassIsland, OpenRemoteShouter, and native library builds should be published under their own repository licenses and Release processes.

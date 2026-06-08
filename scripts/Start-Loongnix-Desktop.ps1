@@ -22,7 +22,8 @@ param(
     [switch]$NoHostShare,
     [switch]$Snapshot,
     [switch]$NoAudio,
-    [switch]$UseMaxCpu
+    [switch]$UseMaxCpu,
+    [switch]$NoWait
 )
 
 $ErrorActionPreference = "Stop"
@@ -167,6 +168,8 @@ if ($EnableHostShare) {
     Write-Host "Host share: disabled"
 }
 Write-Host "Serial log: $SerialLog"
+Write-Host "PowerShell waits while the QEMU window is open. Close the QEMU window to return to the prompt, or start with -NoWait."
+Write-Host "The serial log may stop updating after GRUB hands off to Linux; continue by watching the visible QEMU window."
 Write-Host ""
 
 $Process = Start-Process -FilePath $Qemu -ArgumentList $Args -PassThru
@@ -175,6 +178,11 @@ try {
     $Process.PriorityClass = "AboveNormal"
 } catch {
     Write-Warning "Could not raise QEMU priority: $($_.Exception.Message)"
+}
+
+if ($NoWait) {
+    Write-Host "QEMU started with process id $($Process.Id). Not waiting because -NoWait was specified."
+    return
 }
 
 Wait-Process -Id $Process.Id
