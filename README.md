@@ -33,9 +33,10 @@ English documentation: [README.en.md](README.en.md)
 1. 安装 QEMU。
 2. 下载并校验 Loongnix 镜像。
 3. 启动可见桌面虚拟机。
-4. 把待测软件放入 `shared\`。
-5. 在虚拟机桌面中复制到本地磁盘并运行。
-6. 按 [docs/TESTING.zh-CN.md](docs/TESTING.zh-CN.md) 检查渲染、声音、网络、托盘和重启。
+4. 如果 Loongnix mini 停在 `tty1`，先用 `root` 启用 SSH，再安装/启用 X11 桌面环境，见 [docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境](docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境)。
+5. 把待测软件放入 `shared\`。
+6. 在虚拟机桌面中复制到本地磁盘并运行。
+7. 按 [docs/TESTING.zh-CN.md](docs/TESTING.zh-CN.md) 检查渲染、声音、网络、托盘和重启。
 
 ### 1. 安装 QEMU
 
@@ -113,19 +114,28 @@ Loongnix Desktop mini qcow2 默认账号：
 127.0.0.1:2222 -> guest:22
 ```
 
-这只是 QEMU 网络转发规则，不等于虚拟机内的 SSH 服务一定已经启用。如果需要从宿主机 SSH 进入虚拟机，请先在 Loongnix 桌面终端中确认或安装 SSH 服务：
+这只是 QEMU 网络转发规则，不等于虚拟机内的 SSH 服务一定已经启用。Loongnix mini 镜像首次启动时可能停在 `tty1`，必须先在 QEMU 窗口中用 `root` / `Loongson20` 登录，再用 root 权限启用 SSH：
 
 ```bash
-sudo apt update
-sudo apt install openssh-server
-sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+systemctl enable ssh
+systemctl start ssh
 ```
 
-然后在宿主机连接：
+普通 `loongson` 用户不能直接启用系统服务；mini 镜像通常也没有 `sudo`。如果系统提示 `ssh.service` 不存在，仍然在 root shell 中安装 OpenSSH 服务：
+
+```bash
+apt update
+apt install openssh-server
+systemctl enable --now ssh
+```
+
+然后在宿主机连接普通用户：
 
 ```powershell
 ssh loongson@127.0.0.1 -p 2222
 ```
+
+部分镜像默认禁止 root 通过 SSH 密码登录；这是正常现象，不影响使用 `loongson` 账号测试。
 
 如果 `2222` 被占用，启动虚拟机时可以改端口：
 
@@ -145,9 +155,11 @@ shared\
 
 ```bash
 lsblk
-sudo mkdir -p /mnt/hostshare
-sudo mount -t vfat /dev/vdb /mnt/hostshare
+mkdir -p /mnt/hostshare
+mount -t vfat /dev/vdb /mnt/hostshare
 ```
+
+上面两条挂载命令需要 root 权限。如果当前是普通用户且系统没有 `sudo`，请先在终端中执行 `su -`，或直接在 `tty1` 使用 `root` / `Loongson20` 登录。
 
 为了运行效率，建议先复制到虚拟机本地磁盘再解压/运行：
 

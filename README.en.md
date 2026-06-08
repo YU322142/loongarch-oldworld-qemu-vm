@@ -33,9 +33,10 @@ See [docs/USAGE.md](docs/USAGE.md) for the complete workflow. For a first run, u
 1. Install QEMU.
 2. Download and verify the Loongnix image.
 3. Start the visible desktop VM.
-4. Put the application under test in `shared\`.
-5. Copy it to the guest local disk and run it from the desktop.
-6. Follow [docs/TESTING.md](docs/TESTING.md) to check rendering, audio, networking, tray behavior, and restart.
+4. If Loongnix mini stops at `tty1`, enable SSH as `root`, then install/enable an X11 desktop environment; see [docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment](docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment).
+5. Put the application under test in `shared\`.
+6. Copy it to the guest local disk and run it from the desktop.
+7. Follow [docs/TESTING.md](docs/TESTING.md) to check rendering, audio, networking, tray behavior, and restart.
 
 ### 1. Install QEMU
 
@@ -113,19 +114,28 @@ The launcher already configures host-to-guest port forwarding:
 127.0.0.1:2222 -> guest:22
 ```
 
-This is only a QEMU networking rule; it does not guarantee that the SSH service is enabled inside the guest. If you want to SSH into the VM from the host, first check or install the SSH service inside the Loongnix desktop terminal:
+This is only a QEMU networking rule; it does not guarantee that the SSH service is enabled inside the guest. The Loongnix mini image may boot to `tty1` on first start. Log in through the QEMU window as `root` / `Loongson20`, then enable SSH with root privileges:
 
 ```bash
-sudo apt update
-sudo apt install openssh-server
-sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+systemctl enable ssh
+systemctl start ssh
 ```
 
-Then connect from the host:
+The normal `loongson` user cannot enable system services directly, and the mini image usually does not include `sudo`. If `ssh.service` does not exist, install OpenSSH from the root shell:
+
+```bash
+apt update
+apt install openssh-server
+systemctl enable --now ssh
+```
+
+Then connect from the host as the normal user:
 
 ```powershell
 ssh loongson@127.0.0.1 -p 2222
 ```
+
+Some images disable root password login over SSH by default. That is normal; use the `loongson` account for testing.
 
 If `2222` is already in use, choose another forwarded port when starting the VM:
 
@@ -145,9 +155,11 @@ If the shared disk is not auto-mounted in the guest:
 
 ```bash
 lsblk
-sudo mkdir -p /mnt/hostshare
-sudo mount -t vfat /dev/vdb /mnt/hostshare
+mkdir -p /mnt/hostshare
+mount -t vfat /dev/vdb /mnt/hostshare
 ```
+
+The mount commands require root privileges. If you are a normal user and `sudo` is not available, run `su -` first or log in through `tty1` as `root` / `Loongson20`.
 
 For better runtime speed, copy the app to the guest local disk before extracting or running it:
 

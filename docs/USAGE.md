@@ -87,7 +87,160 @@ Log in to Loongnix:
 
 Desktop testing does not require SSH. SSH is only an optional remote command entry point.
 
-## 5. Add The Application Under Test
+If the first boot stops at `tty1`, log in through the QEMU window as `root` / `Loongson20` and enable SSH from a root shell. This makes it easier to paste commands from the host, mount the shared disk, and collect logs:
+
+```bash
+systemctl enable ssh
+systemctl start ssh
+```
+
+Then connect from the host as the normal user:
+
+```powershell
+ssh loongson@127.0.0.1 -p 2222
+```
+
+The normal `loongson` user cannot enable system services directly, and the mini image usually does not include `sudo`. If `ssh.service` does not exist, install it from the root shell:
+
+```bash
+apt update
+apt install openssh-server
+systemctl enable --now ssh
+```
+
+Note: `root` is already the administrator account, so do not use `sudo` in a root shell. Some images disable root password login over SSH by default; use the `loongson` account for SSH testing.
+
+## 5. If First Boot Stops At tty1, Enable SSH And Prepare The Desktop Environment
+
+The public Loongnix Desktop mini qcow2 may boot into a text console instead of a graphical login manager:
+
+```text
+Loongnix GNU/Linux 20 Release 6 loongson-pc tty1
+loongson-pc login:
+```
+
+This does not mean QEMU failed. Log in as `root` / `Loongson20`. Enabling SSH, installing packages, and enabling the display manager require root privileges. Do not use `sudo` in a root shell.
+
+### 5.1 Enable SSH
+
+SSH can only be enabled with root privileges. First log in through the QEMU `tty1` as `root` / `Loongson20`, then run:
+
+```bash
+systemctl enable ssh
+systemctl start ssh
+systemctl status ssh --no-pager
+```
+
+Connect from the host as the normal user:
+
+```powershell
+ssh loongson@127.0.0.1 -p 2222
+```
+
+If `ssh.service` does not exist, install OpenSSH from the root shell:
+
+```bash
+apt update
+apt install openssh-server
+systemctl enable --now ssh
+```
+
+Some images disable root password login over SSH by default. Use the `loongson` account; run `su -` inside the guest when root privileges are needed.
+
+### 5.2 Check Whether Desktop Components Are Installed
+
+Run in a root shell:
+
+```bash
+systemctl get-default
+systemctl list-unit-files | grep -E 'sddm|lightdm|gdm|display|xdm'
+ls /usr/bin/Xorg /usr/bin/startplasma-x11 /usr/bin/kwin_x11 /usr/bin/startkde 2>/dev/null
+```
+
+How to read the result:
+
+| Output | Meaning | Next Step |
+| --- | --- | --- |
+| `sddm.service`, `lightdm.service`, or another display manager appears | A graphical login manager is installed | Start that service |
+| Xorg/KDE programs exist but no display manager appears | Some desktop components are installed | Install or enable a display manager |
+| Almost no output | The mini image lacks a desktop environment | Install one below |
+
+If `sddm` is installed:
+
+```bash
+systemctl start sddm
+systemctl enable sddm
+systemctl set-default graphical.target
+```
+
+If the display manager is `lightdm`, replace `sddm` with `lightdm`.
+
+### 5.3 Install KDE/Plasma
+
+All desktop installation commands below require root privileges. If you connected through SSH as the `loongson` user, run `su -` inside the guest first. Then check networking and apt repositories:
+
+```bash
+ip route
+ping -c 3 pkg.loongnix.cn
+apt update
+```
+
+Install base X11, D-Bus, audio tools, SSH, and a display manager:
+
+```bash
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio sddm
+```
+
+Then install KDE/Plasma components:
+
+```bash
+apt install plasma-desktop konsole dolphin
+```
+
+If package names differ in your repository, search first:
+
+```bash
+apt-cache search plasma-desktop
+apt-cache search kde | grep -E 'desktop|plasma'
+apt-cache search sddm
+```
+
+Enable graphical login and reboot:
+
+```bash
+systemctl enable sddm
+systemctl set-default graphical.target
+reboot
+```
+
+After reboot, the QEMU window should enter a graphical login manager. Log in as `loongson` / `Loongson20`.
+
+### 5.4 Fallback: Install A Lightweight Desktop
+
+If Plasma/KDE packages are unavailable, install Xfce as a test shell. It is enough for Avalonia/X11 rendering, window, audio, and tray acceptance:
+
+```bash
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfce4 xfce4-terminal
+systemctl enable lightdm
+systemctl set-default graphical.target
+reboot
+```
+
+After reboot, log in as `loongson` in Xfce and continue with ClassIsland testing. If the tray area is not visible by default, enable the notification/status tray plugin in the panel.
+
+### 5.5 Why tty Or SSH Is Not Enough
+
+Avalonia/X11 applications such as ClassIsland and OpenRemoteShouter must be accepted in a real X11 desktop session. At minimum, check:
+
+- Skia/Avalonia rendering.
+- Tray icon and tray menus.
+- D-Bus, desktop notifications, window hiding/restoring.
+- Audible playback from the desktop session.
+- Close, restart, and relaunch behavior.
+
+SSH is useful for file transfer, mounting, and logs, but it does not replace final graphical acceptance.
+
+## 6. Add The Application Under Test
 
 Put the Actions artifact, Release package, or local build in:
 
@@ -104,7 +257,7 @@ shared\OpenRemoteShouter-linux-loongarch64-oldworld-abi1.0.tar.gz
 
 If the VM is already running, the FAT shared disk usually sees new files. If not, remount inside the guest or restart the VM.
 
-## 6. Mount The Shared Disk In The Guest
+## 7. Mount The Shared Disk In The Guest
 
 Open a Loongnix desktop terminal and inspect disks:
 
@@ -115,14 +268,16 @@ lsblk
 If the shared disk is not mounted automatically:
 
 ```bash
-sudo mkdir -p /mnt/hostshare
-sudo mount -t vfat /dev/vdb /mnt/hostshare
+mkdir -p /mnt/hostshare
+mount -t vfat /dev/vdb /mnt/hostshare
 ls /mnt/hostshare
 ```
 
+Mounting requires root privileges. If you are currently the `loongson` user, run `su -` first.
+
 If `/dev/vdb` is not the shared disk, choose the newly added disk shown by `lsblk`.
 
-## 7. Copy To The Guest Local Disk
+## 8. Copy To The Guest Local Disk
 
 Do not run large applications directly from the shared FAT disk. Copy them to the guest local disk first:
 
@@ -139,7 +294,7 @@ For zip packages:
 unzip /mnt/hostshare/YourApp.zip -d ~/tests/YourApp
 ```
 
-## 8. Start The Application
+## 9. Start The Application
 
 Start from the Loongnix desktop terminal rather than SSH. This keeps `DISPLAY`, D-Bus, tray, audio, and desktop session variables close to a real user environment.
 
@@ -159,7 +314,7 @@ bash run.sh
 
 Keep the terminal open so native library load errors, GLIBC version errors, rendering backend errors, or audio command errors remain visible.
 
-## 9. Manual Acceptance
+## 10. Manual Acceptance
 
 Check at least:
 
@@ -192,7 +347,7 @@ For remote/audio apps such as OpenRemoteShouter, also test:
 - D-Bus or desktop activation behavior.
 - Relaunch after close.
 
-## 10. Record Results
+## 11. Record Results
 
 Keep:
 
@@ -204,7 +359,7 @@ Keep:
 - Screenshots of important UI states.
 - Manual acceptance result, for example "rendering OK, tray works, audio audible".
 
-## 11. Reset The Environment
+## 12. Reset The Environment
 
 If testing leaves the system in a bad state, shut down QEMU and run:
 
@@ -218,7 +373,7 @@ By default, this creates a qcow2 backing work disk, which is faster and smaller.
 .\scripts\Reset-WorkDisk.ps1 -Force -ResetFirmwareVars -FullCopy
 ```
 
-## 12. Common Issues
+## 13. Common Issues
 
 ### QEMU Opens But Is Slow
 
@@ -235,8 +390,10 @@ speaker-test -t wav -c 2
 If the app depends on `ffplay`:
 
 ```bash
-which ffplay || sudo apt install ffmpeg
+which ffplay || apt install ffmpeg
 ```
+
+Package installation requires root privileges; normal users should run `su -` first.
 
 ### Shared Disk Is Missing
 
@@ -244,4 +401,27 @@ Make sure the VM was not started with `-NoHostShare`, then run `lsblk` in the gu
 
 ### SSH Does Not Connect
 
-SSH is optional. If you need it, install and start `openssh-server` inside the guest, then connect from the host to `127.0.0.1:2222`.
+SSH is optional. If you need it, log in through the QEMU `tty1` as `root` / `Loongson20`, then run with root privileges:
+
+```bash
+systemctl enable ssh
+systemctl start ssh
+```
+
+If `ssh.service` is missing, install it from the root shell:
+
+```bash
+apt update
+apt install openssh-server
+systemctl enable --now ssh
+```
+
+Connect from the host as the normal user:
+
+```powershell
+ssh loongson@127.0.0.1 -p 2222
+```
+
+### Stuck At tty1 With No Desktop
+
+This can happen with the Loongnix mini image. Follow section 5 to enable SSH as root, inspect the display manager, and install/enable an X11 desktop environment. Until the desktop is installed, only command-line diagnostics are possible; Avalonia/X11 graphical acceptance is not complete.

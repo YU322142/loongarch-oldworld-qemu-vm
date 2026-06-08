@@ -27,6 +27,27 @@ Expected:
 - The desktop session provides an X11 environment.
 - Networking works.
 
+## Desktop Environment Preflight
+
+If the VM stops at `tty1`, the system has only reached a text console. That is not enough for ClassIsland graphical acceptance. First follow [USAGE.md section 5](USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment) to enable SSH as root and install/enable an X11 desktop.
+
+After entering the graphical desktop, verify from a desktop terminal:
+
+```bash
+echo "$DISPLAY"
+echo "$XDG_SESSION_TYPE"
+echo "$XDG_CURRENT_DESKTOP"
+ps -ef | grep -E 'sddm|lightdm|plasmashell|xfce4|kwin' | grep -v grep
+```
+
+Expected:
+
+- `DISPLAY` is set, for example `:0`.
+- The session is X11, or can at least launch X11 applications.
+- A visible desktop, panel/tray area, and terminal are available.
+
+If SSH works but there is no visible X11 desktop, only command-line diagnostics are possible; Avalonia/X11 rendering, tray, and audio acceptance is not complete.
+
 ## SSH Checks (Optional)
 
 Visible desktop testing does not depend on SSH. Enable SSH only when you want to run commands, copy files, or collect logs remotely from the host.
@@ -37,12 +58,19 @@ The QEMU launcher already configures:
 127.0.0.1:2222 -> guest:22
 ```
 
-If SSH is not enabled inside the guest:
+If SSH is not enabled inside the guest, log in through the QEMU `tty1` as `root` / `Loongson20`, then run the service commands with root privileges:
 
 ```bash
-sudo apt update
-sudo apt install openssh-server
-sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+systemctl enable ssh
+systemctl start ssh
+```
+
+The normal `loongson` user cannot enable system services directly, and the mini image usually does not include `sudo`. If `ssh.service` is missing, install it from the root shell:
+
+```bash
+apt update
+apt install openssh-server
+systemctl enable --now ssh
 ```
 
 Connect from the host:
@@ -51,15 +79,19 @@ Connect from the host:
 ssh loongson@127.0.0.1 -p 2222
 ```
 
+Service enablement requires root. After the service starts, prefer connecting from the host as the `loongson` user. Some images disable root password login over SSH by default; that is normal.
+
 ## Shared Folder
 
 If the shared disk is not auto-mounted:
 
 ```bash
 lsblk
-sudo mkdir -p /mnt/hostshare
-sudo mount -t vfat /dev/vdb /mnt/hostshare
+mkdir -p /mnt/hostshare
+mount -t vfat /dev/vdb /mnt/hostshare
 ```
+
+Mounting requires root privileges. If `sudo` is not available for a normal user, run `su -` first or log in through `tty1` as root.
 
 Copy to the guest local disk before running:
 
@@ -92,9 +124,11 @@ speaker-test -t wav -c 2
 If the app relies on `ffmpeg`/`ffplay`:
 
 ```bash
-which ffplay || sudo apt install ffmpeg
+which ffplay || apt install ffmpeg
 ffplay /path/to/test.wav
 ```
+
+Package installation requires root privileges.
 
 ## Tray Checks
 

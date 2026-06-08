@@ -27,6 +27,27 @@ ping -c 3 github.com
 - 桌面会话应能提供 X11 环境。
 - 能访问网络。
 
+## 桌面环境预检
+
+如果虚拟机停在 `tty1`，这只说明系统启动到了命令行，不代表已经具备 ClassIsland 图形验收环境。先按 [USAGE.zh-CN.md 第 5 节](USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境) 用 root 启用 SSH，并安装/启用 X11 桌面。
+
+进入图形桌面后，在桌面终端中确认：
+
+```bash
+echo "$DISPLAY"
+echo "$XDG_SESSION_TYPE"
+echo "$XDG_CURRENT_DESKTOP"
+ps -ef | grep -E 'sddm|lightdm|plasmashell|xfce4|kwin' | grep -v grep
+```
+
+期望：
+
+- `DISPLAY` 有值，例如 `:0`。
+- 会话类型是 X11，或至少能启动 X11 应用。
+- 有可见桌面、面板/托盘区域和终端。
+
+只有 SSH 能连接、但没有可见 X11 桌面时，只能做命令行诊断；不能算完成 Avalonia/X11 渲染、托盘、声音验收。
+
 ## SSH 检查（可选）
 
 可见桌面测试不依赖 SSH。只有需要从宿主机远程执行命令、复制文件或抓日志时，才需要启用虚拟机内的 SSH 服务。
@@ -37,12 +58,19 @@ QEMU 启动脚本默认已经配置：
 127.0.0.1:2222 -> guest:22
 ```
 
-如果虚拟机内没有开启 SSH：
+如果虚拟机内没有开启 SSH，只能先在 QEMU `tty1` 中用 `root` / `Loongson20` 登录，再用 root 权限执行：
 
 ```bash
-sudo apt update
-sudo apt install openssh-server
-sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+systemctl enable ssh
+systemctl start ssh
+```
+
+普通 `loongson` 用户不能直接启用系统服务；mini 镜像通常也没有 `sudo`。如果没有 `ssh.service`，仍然在 root shell 中安装：
+
+```bash
+apt update
+apt install openssh-server
+systemctl enable --now ssh
 ```
 
 宿主机连接：
@@ -51,15 +79,19 @@ sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
 ssh loongson@127.0.0.1 -p 2222
 ```
 
+启用服务必须用 root；服务启动后，宿主机侧优先连接 `loongson` 用户。部分镜像默认禁止 root 通过 SSH 密码登录，这是正常现象。
+
 ## 共享目录
 
 如果共享盘没有自动挂载：
 
 ```bash
 lsblk
-sudo mkdir -p /mnt/hostshare
-sudo mount -t vfat /dev/vdb /mnt/hostshare
+mkdir -p /mnt/hostshare
+mount -t vfat /dev/vdb /mnt/hostshare
 ```
+
+挂载命令需要 root 权限；普通用户如果没有 `sudo`，请先 `su -` 或用 root 登录 `tty1`。
 
 复制到本地磁盘后运行：
 
@@ -92,9 +124,11 @@ speaker-test -t wav -c 2
 如果应用依赖 `ffmpeg`/`ffplay`：
 
 ```bash
-which ffplay || sudo apt install ffmpeg
+which ffplay || apt install ffmpeg
 ffplay /path/to/test.wav
 ```
+
+安装软件包需要 root 权限。
 
 ## 托盘检查
 
