@@ -39,6 +39,58 @@ function Save-File {
     }
 }
 
+function Resolve-QemuImg {
+    param([string]$RequestedQemuDir, [string]$Root)
+
+    $Candidates = @()
+    if ($RequestedQemuDir) {
+        $Candidates += (Join-Path $RequestedQemuDir "qemu-img.exe")
+    }
+
+    $Candidates += @(
+        (Join-Path $Root "tools\qemu\qemu-img.exe"),
+        "C:\Program Files\qemu\qemu-img.exe",
+        "C:\Program Files (x86)\qemu\qemu-img.exe"
+    )
+
+    $Found = Get-ExistingPath -Candidates $Candidates
+    if ($Found) {
+        return $Found
+    }
+
+    $Command = Get-Command "qemu-img.exe" -ErrorAction SilentlyContinue
+    if ($Command) {
+        return $Command.Source
+    }
+
+    $SystemCandidates = @()
+    if ($RequestedQemuDir) {
+        $SystemCandidates += (Join-Path $RequestedQemuDir "qemu-system-loongarch64.exe")
+    }
+    $SystemCandidates += @(
+        (Join-Path $Root "tools\qemu\qemu-system-loongarch64.exe"),
+        "C:\Program Files\qemu\qemu-system-loongarch64.exe",
+        "C:\Program Files (x86)\qemu\qemu-system-loongarch64.exe"
+    )
+
+    $QemuSystem = Get-ExistingPath -Candidates $SystemCandidates
+    if (-not $QemuSystem) {
+        $SystemCommand = Get-Command "qemu-system-loongarch64.exe" -ErrorAction SilentlyContinue
+        if ($SystemCommand) {
+            $QemuSystem = $SystemCommand.Source
+        }
+    }
+
+    if ($QemuSystem) {
+        $Sibling = Join-Path (Split-Path -Parent $QemuSystem) "qemu-img.exe"
+        if (Test-Path -LiteralPath $Sibling) {
+            return (Resolve-Path -LiteralPath $Sibling).Path
+        }
+    }
+
+    return $null
+}
+
 $Root = Split-Path -Parent $PSScriptRoot
 $Images = Join-Path $Root "images"
 $ImageName = Split-Path -Leaf $ImageUrl
@@ -71,20 +123,24 @@ if ($SkipWorkDisk) {
     exit 0
 }
 
-$QemuImg = Get-ExistingPath -Candidates @(
-    $(if ($QemuDir) { Join-Path $QemuDir "qemu-img.exe" }),
-    (Join-Path $Root "tools\qemu\qemu-img.exe"),
-    "C:\Program Files\qemu\qemu-img.exe",
-    "C:\Program Files (x86)\qemu\qemu-img.exe"
-)
+$QemuImg = Resolve-QemuImg -RequestedQemuDir $QemuDir -Root $Root
 
 if (-not $QemuImg) {
-    $Command = Get-Command "qemu-img.exe" -ErrorAction SilentlyContinue
-    if ($Command) { $QemuImg = $Command.Source }
-}
-
-if (-not $QemuImg) {
-    throw "qemu-img.exe was not found. Install QEMU first or pass -QemuDir. Use -SkipWorkDisk to only download the image."
+    Write-Warning "The Loongnix image was downloaded and verified, but the writable work disk was not created because qemu-img.exe was not found."
+    Write-Host ""
+    Write-Host "Image file:"
+    Write-Host "  $Base"
+    Write-Host ""
+    Write-Host "Next steps:"
+    Write-Host "  1. Install QEMU, then run this script again:"
+    Write-Host "     .\scripts\Install-Qemu-Windows.ps1"
+    Write-Host "     .\scripts\Download-LoongnixImage.ps1"
+    Write-Host "  2. If QEMU is already installed elsewhere, pass its directory:"
+    Write-Host "     .\scripts\Download-LoongnixImage.ps1 -QemuDir D:\Path\To\qemu"
+    Write-Host "  3. If you only wanted to download and verify the image:"
+    Write-Host "     .\scripts\Download-LoongnixImage.ps1 -SkipWorkDisk"
+    Write-Host ""
+    throw "qemu-img.exe was not found; no work disk was created."
 }
 
 if ((Test-Path -LiteralPath $Work) -and -not $Force) {

@@ -70,6 +70,18 @@ images\loongnix-abi1-work.qcow2
 
 The work disk stores system settings, installed packages, and test state. Do not commit it to Git.
 
+Creating the work disk requires `qemu-img.exe` on the Windows host. If you see `Verified image` followed by `qemu-img.exe was not found`, the image has already been downloaded and verified; only the work disk is missing. Install QEMU as described in section 2, or pass the QEMU directory:
+
+```powershell
+.\scripts\Download-LoongnixImage.ps1 -QemuDir D:\Path\To\qemu
+```
+
+If you only want to download and verify the image without creating a work disk:
+
+```powershell
+.\scripts\Download-LoongnixImage.ps1 -SkipWorkDisk
+```
+
 ## 4. Start The Visible QEMU VM Window
 
 If QEMU is installed in a location the script can find, double-click:

@@ -70,6 +70,18 @@ images\loongnix-abi1-work.qcow2
 
 这个工作盘会保存系统设置、安装的软件和测试状态。不要把它提交到 Git。
 
+创建工作盘需要 Windows 主机上能找到 `qemu-img.exe`。如果你看到 `Verified image` 后又出现 `qemu-img.exe was not found`，说明镜像已经下载并校验成功，只是还没有创建工作盘。先按第 2 节安装 QEMU，或把 QEMU 目录传给脚本：
+
+```powershell
+.\scripts\Download-LoongnixImage.ps1 -QemuDir D:\Path\To\qemu
+```
+
+如果只想先下载和校验镜像，不创建工作盘：
+
+```powershell
+.\scripts\Download-LoongnixImage.ps1 -SkipWorkDisk
+```
+
 ## 4. 启动可见 QEMU 虚拟机窗口
 
 如果 QEMU 已经安装在脚本能找到的位置，可以双击：
