@@ -37,14 +37,14 @@ ping -c 3 github.com
 echo "$DISPLAY"
 echo "$XDG_SESSION_TYPE"
 echo "$XDG_CURRENT_DESKTOP"
-ps -ef | grep -E 'sddm|lightdm|plasmashell|xfce4|kwin' | grep -v grep
+ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|plasmashell|kwin' | grep -v grep
 ```
 
 期望：
 
 - `DISPLAY` 有值，例如 `:0`。
 - 会话类型是 X11，或至少能启动 X11 应用。
-- 有可见桌面、面板/托盘区域和终端。
+- 有可见桌面、面板/托盘区域和终端。按推荐轻量方案安装时，通常能看到 `lightdm`、`Xorg`、`openbox`、`tint2` 和 `lxterminal`。
 
 只有 SSH 能连接、但没有可见 X11 桌面时，只能做命令行诊断；不能算完成 Avalonia/X11 渲染、托盘、声音验收。
 
@@ -132,11 +132,12 @@ ffplay /path/to/test.wav
 
 ## 托盘检查
 
-在 KDE/X11 中测试托盘时，建议确认：
+在推荐的 Openbox 轻量环境中测试托盘时，建议确认：
 
 ```bash
 echo "$XDG_CURRENT_DESKTOP"
 echo "$DESKTOP_SESSION"
+ps -ef | grep -E 'tint2|openbox' | grep -v grep
 ```
 
 然后在应用内执行托盘菜单、隐藏到托盘、从托盘恢复、退出等操作。托盘图标属于本环境必须人工验收的项目。

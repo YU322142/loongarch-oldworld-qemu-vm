@@ -1,6 +1,6 @@
 # LoongArch Old-World ABI1.0 QEMU X11 Test Environment
 
-This repository provides a visible Windows-hosted QEMU desktop VM setup for testing LoongArch old-world ABI1.0 Linux/X11 applications, especially .NET/Avalonia rendering, audio, networking, tray icons, and desktop interaction.
+This repository provides a visible Windows-hosted QEMU VM and X11 test setup for LoongArch old-world ABI1.0 Linux/X11 applications, especially .NET/Avalonia rendering, audio, networking, tray icons, and desktop interaction.
 
 The repository only contains open-source launcher scripts, download/checksum scripts, packaging scripts, and documentation. QEMU, EDK2 firmware, Loongnix system images, runtimes, and user test packages are third-party or user-provided assets and are not covered by this repository's MIT license. See [docs/ASSETS.md](docs/ASSETS.md) for source and licensing boundaries.
 
@@ -8,7 +8,8 @@ The repository only contains open-source launcher scripts, download/checksum scr
 
 ## What It Provides
 
-- A visible desktop window, not headless QEMU, so rendering issues can be inspected manually.
+- A visible QEMU SDL window, not headless QEMU, so boot, installation, and rendering issues can be inspected manually.
+- The Loongnix Desktop mini image may first stop at `tty1`; the launcher opens a visible VM window, while the X11 desktop must still be installed/enabled inside the guest.
 - User-mode networking by default, forwarding host `127.0.0.1:2222` to guest SSH port `22`.
 - DirectSound + Intel HDA audio by default for bell, TTS, and playback tests.
 - A host shared folder by default for moving Actions artifacts or local builds into the VM.
@@ -32,8 +33,8 @@ See [docs/USAGE.md](docs/USAGE.md) for the complete workflow. For a first run, u
 
 1. Install QEMU.
 2. Download and verify the Loongnix image.
-3. Start the visible desktop VM.
-4. If Loongnix mini stops at `tty1`, enable SSH as `root`, then install/enable an X11 desktop environment; see [docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment](docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment).
+3. Start the visible QEMU VM window.
+4. If Loongnix mini stops at `tty1`, enable SSH as `root`, then install/enable the lightweight LightDM + Openbox test desktop; see [docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment](docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment).
 5. Put the application under test in `shared\`.
 6. Copy it to the guest local disk and run it from the desktop.
 7. Follow [docs/TESTING.md](docs/TESTING.md) to check rendering, audio, networking, tray behavior, and restart.
@@ -69,7 +70,7 @@ SHA256 c960ce8718ce7c8fecd442059ba845b9edc9f0abf90e930b04711f109bf6737c
 
 It then creates `images\loongnix-abi1-work.qcow2` as the writable work disk.
 
-### 3. Start The Visible Desktop
+### 3. Start The Visible QEMU Window
 
 Double-click:
 
@@ -106,7 +107,7 @@ Loongnix Desktop mini qcow2 default credentials:
 
 ## Is SSH Required
 
-No. This setup is primarily for visible X11 desktop testing. Users can log in directly through the QEMU window, open a desktop terminal, and run the application there.
+No. This setup is primarily for visible X11 desktop testing inside the QEMU window. If Loongnix mini first stops at `tty1`, install/enable the desktop environment before treating it as a graphical test environment. After the graphical desktop is available, users can open a desktop terminal in the QEMU window and run the application there.
 
 The launcher already configures host-to-guest port forwarding:
 

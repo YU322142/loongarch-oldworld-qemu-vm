@@ -56,7 +56,7 @@ images\loongnix-abi1-work.qcow2
 
 这个工作盘会保存系统设置、安装的软件和测试状态。不要把它提交到 Git。
 
-## 4. 启动可见桌面虚拟机
+## 4. 启动可见 QEMU 虚拟机窗口
 
 双击：
 
@@ -72,7 +72,7 @@ Launch-Loongnix-Desktop.cmd
 
 默认会开启：
 
-- 可见 SDL 桌面窗口。
+- 可见 SDL 窗口。
 - 用户态网络。
 - DirectSound + Intel HDA 声音。
 - 宿主机 `shared\` 共享盘。
@@ -85,7 +85,7 @@ Launch-Loongnix-Desktop.cmd
 | `loongson` | `Loongson20` |
 | `root` | `Loongson20` |
 
-桌面测试不需要 SSH。SSH 只是可选的远程命令入口。
+桌面测试不依赖 SSH，但首次停在 `tty1` 时，SSH 只能先在 `tty1` 里由 root 启用。启用后，SSH 只是可选的远程命令入口。
 
 如果首次启动停在 `tty1`，必须先用 `root` / `Loongson20` 登录，并在 root shell 中启用 SSH，方便后续从宿主机复制命令、挂载共享盘和抓日志：
 
@@ -163,7 +163,9 @@ ls /usr/bin/Xorg /usr/bin/startplasma-x11 /usr/bin/kwin_x11 /usr/bin/startkde 2>
 | --- | --- | --- |
 | 有 `sddm.service`、`lightdm.service` 或其他 display manager | 图形登录器已安装 | 直接启动对应服务 |
 | 有 Xorg/KDE 程序但没有 display manager | 已有部分桌面组件 | 安装或启用显示管理器 |
-| 几乎没有输出 | mini 镜像缺少桌面环境 | 按下面步骤安装 |
+| 几乎没有输出 | mini 镜像缺少桌面环境 | 安装 LightDM + Openbox 轻量测试桌面 |
+
+本项目实测的公开 Loongnix mini 镜像初始状态是：`ssh.service` 已可由 root 启用，`systemctl get-default` 为 `graphical.target`，但没有 `sddm/lightdm`，也没有 `/usr/bin/Xorg`、`startplasma-x11`、`kwin_x11` 等桌面组件。因此即使启动脚本打开了可见 QEMU 窗口，也仍然需要安装桌面环境。
 
 如果已经安装了 `sddm`：
 
@@ -175,58 +177,155 @@ systemctl set-default graphical.target
 
 如果显示管理器是 `lightdm`，把命令中的 `sddm` 换成 `lightdm`。
 
-### 5.3 安装 KDE/Plasma 桌面环境
-
-下面安装桌面环境的命令都需要 root 权限。如果你是通过 SSH 连接进来的 `loongson` 用户，请先在虚拟机内执行 `su -` 切到 root。先确认网络和 apt 源可用：
+如果安装过程被中断，先确认没有 apt/dpkg 进程正在运行，并检查包数据库状态：
 
 ```bash
-ip route
+ps -ef | grep -E 'apt|dpkg' | grep -v grep
+dpkg --audit
+```
+
+`dpkg --audit` 没有输出时，通常可以继续安装。若它提示有未配置的软件包，先执行：
+
+```bash
+dpkg --configure -a
+apt --fix-broken install
+```
+
+### 5.3 安装 LightDM + Openbox 轻量测试桌面（推荐）
+
+下面安装桌面环境的命令都需要 root 权限。如果你是通过 SSH 连接进来的 `loongson` 用户，请先在虚拟机内执行 `su -` 切到 root。先确认网络和 apt 源可用。mini 镜像可能没有 `ip` 命令，可以用 `ifconfig` 代替；安装 `iproute2` 后才会有 `ip`：
+
+```bash
+ip route || ifconfig
 ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-推荐先安装基础 X11、D-Bus、声音工具、SSH 和显示管理器：
+推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、Openbox、LXTerminal、tint2 面板/托盘、通知服务和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、窗口、声音、通知和托盘图标验收：
+
+可以先模拟安装，确认依赖能解析：
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio sddm
+apt-get -s install lightdm openbox obconf lxterminal tint2 notification-daemon
 ```
-
-再安装 KDE/Plasma 桌面组件：
 
 ```bash
-apt install plasma-desktop konsole dolphin
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
 ```
+
+给 `loongson` 用户添加 Openbox 自动启动项，让登录后直接出现面板、托盘和终端：
+
+```bash
+mkdir -p /home/loongson/.config/openbox
+cat >/home/loongson/.config/openbox/autostart <<'EOF'
+pulseaudio --start
+notification-daemon &
+tint2 &
+lxterminal &
+EOF
+chown -R loongson:loongson /home/loongson/.config
+cat >/home/loongson/.dmrc <<'EOF'
+[Desktop]
+Session=openbox
+EOF
+chown loongson:loongson /home/loongson/.dmrc
+mkdir -p /etc/xdg/lightdm/lightdm.conf.d
+cat >/etc/xdg/lightdm/lightdm.conf.d/50-openbox-test.conf <<'EOF'
+[Seat:*]
+user-session=openbox
+EOF
+```
+
+Loongnix 源里的 `/usr/share/xsessions/openbox.desktop` 使用 `Exec=/usr/bin/openbox-session`，会读取上面的 `~/.config/openbox/autostart`。`.dmrc` 和 `50-openbox-test.conf` 用来把默认登录会话固定为 Openbox，避免 LightDM 进入 `lightdm-xsession` 后再启动 Plasma。实测这版 LightDM 会读取 `/etc/xdg/lightdm/lightdm.conf.d`，不要把自定义配置写到 `/etc/lightdm/lightdm.conf.d`。
+
+如果之前装过 `sddm`，建议改用 LightDM，避免两个显示管理器抢默认入口：
+
+```bash
+printf '/usr/sbin/lightdm\n' >/etc/X11/default-display-manager
+systemctl disable sddm || true
+systemctl enable lightdm
+systemctl set-default graphical.target
+```
+
+在这份 Loongnix 镜像中，`lightdm.service` 可能显示为 `static`，这不一定代表配置失败。重点检查默认显示管理器文件、`sddm` 是否已禁用，以及能否实际启动 LightDM：
+
+```bash
+cat /etc/X11/default-display-manager
+systemctl is-enabled sddm || true
+systemctl start lightdm
+systemctl status lightdm --no-pager
+```
+
+如果此前已经登录进了 Plasma 或其它会话，应用配置后重启 LightDM：
+
+```bash
+systemctl restart lightdm
+```
+
+为了反复测试更快，也可以在这个测试虚拟机里启用 `loongson` 自动登录 Openbox：
+
+```bash
+cat >/etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf <<'EOF'
+[Seat:*]
+autologin-user=loongson
+autologin-user-timeout=0
+user-session=openbox
+autologin-session=openbox
+EOF
+systemctl restart lightdm
+```
+
+自动登录只建议用于本地测试虚拟机；如果要保留登录界面，删除这个文件后重启 LightDM：
+
+```bash
+rm -f /etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf
+systemctl restart lightdm
+```
+
+确认 QEMU 窗口出现图形登录器后，可以重启验证持久化：
+
+```bash
+reboot
+```
+
+重启后 QEMU 窗口应进入 LightDM 图形登录器。使用 `loongson` / `Loongson20` 登录 Openbox 会话；登录后应出现 tint2 面板/托盘和 LXTerminal。
+
+实测启动成功时，`systemctl status lightdm --no-pager` 会显示 `active (running)`，进程列表里应能看到 `/usr/sbin/lightdm` 和 `/usr/lib/xorg/Xorg :0 ... vt7`。
 
 如果软件源里包名不同，先搜索可用包：
 
 ```bash
-apt-cache search plasma-desktop
-apt-cache search kde | grep -E 'desktop|plasma'
-apt-cache search sddm
+apt-cache search lightdm
+apt-cache search openbox
+apt-cache search tint2
 ```
 
-安装完成后启用图形登录并重启：
+如果下载过程中遇到单个包临时失败，可以先重试：
 
 ```bash
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
+```
+
+实测当前 Loongnix 源中，`xfce4` 元包会因为 `xfce4-settings` 依赖的主题包不可安装而失败；`lxde` 元包会引用没有候选版本的 `lxpanel/pcmanfm`。因此不要把 Xfce/LXDE 元包作为默认安装路径。需要复查时可用：
+
+```bash
+apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
+apt-cache policy xfce4-session xfce4-settings xfwm4 xfdesktop4
+```
+
+### 5.4 可选：安装 KDE/Plasma 完整桌面
+
+如果你想测试更完整的 KDE/Plasma 桌面行为，可以安装 `sddm`、`plasma-desktop`、`konsole`、`dolphin`。它功能更完整，但下载和安装量明显更大，不作为本方案的默认推荐。
+
+```bash
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio sddm plasma-desktop konsole dolphin iproute2
+systemctl disable lightdm || true
 systemctl enable sddm
 systemctl set-default graphical.target
 reboot
 ```
 
-重启后 QEMU 窗口应进入图形登录器。使用 `loongson` / `Loongson20` 登录桌面。
-
-### 5.4 KDE 不可用时安装轻量桌面备用方案
-
-如果 Loongnix 源里没有 Plasma/KDE 组件，可以先安装 Xfce 作为测试壳。它足够用于 Avalonia/X11 渲染、窗口、声音和托盘验收：
-
-```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfce4 xfce4-terminal
-systemctl enable lightdm
-systemctl set-default graphical.target
-reboot
-```
-
-重启后用 `loongson` 登录 Xfce 桌面，再继续运行 ClassIsland。若托盘区域默认不可见，请在面板中启用通知区域/状态托盘插件。
+实测 Loongnix 源中这些 KDE 包存在；但一次完整 KDE 安装下载量接近 500 MB，网络不稳定时更容易中断。
 
 ### 5.5 为什么不能只在 tty 或 SSH 中验收
 

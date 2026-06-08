@@ -1,6 +1,6 @@
 # LoongArch 旧世界 ABI1.0 QEMU X11 测试环境
 
-这是一个 Windows 主机上的可见 QEMU 桌面虚拟机方案，用于测试 LoongArch 旧世界 ABI1.0 Linux/X11 软件，重点覆盖 .NET/Avalonia 应用的渲染、声音、网络、托盘图标和基本桌面交互。
+这是一个 Windows 主机上的可见 QEMU 虚拟机与 X11 测试环境方案，用于测试 LoongArch 旧世界 ABI1.0 Linux/X11 软件，重点覆盖 .NET/Avalonia 应用的渲染、声音、网络、托盘图标和基本桌面交互。
 
 本仓库只开源启动脚本、下载/校验脚本、打包脚本和文档。QEMU、EDK2 固件、Loongnix 系统镜像、运行库和你放进虚拟机的测试软件都属于第三方或用户资产，不适用本仓库的 MIT 许可。来源和授权边界见 [docs/ASSETS.zh-CN.md](docs/ASSETS.zh-CN.md)。
 
@@ -8,7 +8,8 @@ English documentation: [README.en.md](README.en.md)
 
 ## 能做什么
 
-- 可见桌面窗口，不使用无头 QEMU，适合人工观察渲染问题。
+- 可见 QEMU SDL 窗口，不使用无头 QEMU，适合人工观察启动、安装和渲染问题。
+- Loongnix Desktop mini 镜像可能首次停在 `tty1`；脚本负责启动可见窗口，X11 桌面环境需要在虚拟机内安装/启用后才会出现。
 - 默认启用用户态网络，宿主机 `127.0.0.1:2222` 转发到虚拟机 SSH `22`。
 - 默认启用 DirectSound + Intel HDA 声卡，适合测试铃声、TTS、音频播放。
 - 默认启用宿主机共享目录，方便把 Actions artifact 或本地包放入虚拟机。
@@ -32,8 +33,8 @@ English documentation: [README.en.md](README.en.md)
 
 1. 安装 QEMU。
 2. 下载并校验 Loongnix 镜像。
-3. 启动可见桌面虚拟机。
-4. 如果 Loongnix mini 停在 `tty1`，先用 `root` 启用 SSH，再安装/启用 X11 桌面环境，见 [docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境](docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境)。
+3. 启动可见 QEMU 虚拟机窗口。
+4. 如果 Loongnix mini 停在 `tty1`，先用 `root` 启用 SSH，再安装/启用 LightDM + Openbox 轻量测试桌面，见 [docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境](docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境)。
 5. 把待测软件放入 `shared\`。
 6. 在虚拟机桌面中复制到本地磁盘并运行。
 7. 按 [docs/TESTING.zh-CN.md](docs/TESTING.zh-CN.md) 检查渲染、声音、网络、托盘和重启。
@@ -69,7 +70,7 @@ SHA256 c960ce8718ce7c8fecd442059ba845b9edc9f0abf90e930b04711f109bf6737c
 
 随后会创建 `images\loongnix-abi1-work.qcow2` 作为可写工作盘。
 
-### 3. 启动可见桌面
+### 3. 启动可见 QEMU 窗口
 
 双击：
 
@@ -106,7 +107,7 @@ Loongnix Desktop mini qcow2 默认账号：
 
 ## SSH 是否必须
 
-不必须。这个方案的主要用途是可见 X11 桌面测试，用户可以直接在 QEMU 窗口中登录桌面、打开终端并运行软件。
+不必须。这个方案的主要用途是可见 QEMU 窗口中的 X11 桌面测试。首次启动时如果 Loongnix mini 停在 `tty1`，需要先按文档安装/启用桌面环境；进入图形桌面后，用户可以直接在 QEMU 窗口中打开终端并运行软件。
 
 脚本已经自动配置了宿主机到虚拟机的端口转发：
 

@@ -56,7 +56,7 @@ images\loongnix-abi1-work.qcow2
 
 The work disk stores system settings, installed packages, and test state. Do not commit it to Git.
 
-## 4. Start The Visible Desktop VM
+## 4. Start The Visible QEMU VM Window
 
 Double-click:
 
@@ -72,7 +72,7 @@ or run:
 
 Default features:
 
-- Visible SDL desktop window.
+- Visible SDL window.
 - User-mode networking.
 - DirectSound + Intel HDA audio.
 - Host `shared\` folder as a guest disk.
@@ -85,7 +85,7 @@ Log in to Loongnix:
 | `loongson` | `Loongson20` |
 | `root` | `Loongson20` |
 
-Desktop testing does not require SSH. SSH is only an optional remote command entry point.
+Desktop testing does not depend on SSH, but when the first boot stops at `tty1`, SSH can only be enabled there by root first. After that, SSH is only an optional remote command entry point.
 
 If the first boot stops at `tty1`, log in through the QEMU window as `root` / `Loongson20` and enable SSH from a root shell. This makes it easier to paste commands from the host, mount the shared disk, and collect logs:
 
@@ -163,7 +163,9 @@ How to read the result:
 | --- | --- | --- |
 | `sddm.service`, `lightdm.service`, or another display manager appears | A graphical login manager is installed | Start that service |
 | Xorg/KDE programs exist but no display manager appears | Some desktop components are installed | Install or enable a display manager |
-| Almost no output | The mini image lacks a desktop environment | Install one below |
+| Almost no output | The mini image lacks a desktop environment | Install lightweight LightDM + Openbox |
+
+In the public Loongnix mini image tested for this project, `ssh.service` can be enabled by root and `systemctl get-default` reports `graphical.target`, but there is no `sddm/lightdm` and no `/usr/bin/Xorg`, `startplasma-x11`, or `kwin_x11`. So the launcher opening a visible QEMU window does not mean the guest already has a desktop environment.
 
 If `sddm` is installed:
 
@@ -175,58 +177,155 @@ systemctl set-default graphical.target
 
 If the display manager is `lightdm`, replace `sddm` with `lightdm`.
 
-### 5.3 Install KDE/Plasma
-
-All desktop installation commands below require root privileges. If you connected through SSH as the `loongson` user, run `su -` inside the guest first. Then check networking and apt repositories:
+If installation is interrupted, first make sure no apt/dpkg process is still running and check the package database:
 
 ```bash
-ip route
+ps -ef | grep -E 'apt|dpkg' | grep -v grep
+dpkg --audit
+```
+
+If `dpkg --audit` prints nothing, it is usually safe to continue. If it reports unpacked or unconfigured packages, run:
+
+```bash
+dpkg --configure -a
+apt --fix-broken install
+```
+
+### 5.3 Install Lightweight LightDM + Openbox Test Desktop (Recommended)
+
+All desktop installation commands below require root privileges. If you connected through SSH as the `loongson` user, run `su -` inside the guest first. Then check networking and apt repositories. The mini image may not include the `ip` command; use `ifconfig` until `iproute2` is installed:
+
+```bash
+ip route || ifconfig
 ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-Install base X11, D-Bus, audio tools, SSH, and a display manager:
+Install X11, D-Bus, audio tools, OpenSSH, LightDM, Openbox, LXTerminal, the tint2 panel/tray, notifications, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, windows, audio, notifications, and tray icon acceptance:
+
+You can simulate the install first to confirm that dependencies resolve:
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio sddm
+apt-get -s install lightdm openbox obconf lxterminal tint2 notification-daemon
 ```
-
-Then install KDE/Plasma components:
 
 ```bash
-apt install plasma-desktop konsole dolphin
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
 ```
+
+Add an Openbox autostart file for the `loongson` user so login opens a panel, tray, and terminal immediately:
+
+```bash
+mkdir -p /home/loongson/.config/openbox
+cat >/home/loongson/.config/openbox/autostart <<'EOF'
+pulseaudio --start
+notification-daemon &
+tint2 &
+lxterminal &
+EOF
+chown -R loongson:loongson /home/loongson/.config
+cat >/home/loongson/.dmrc <<'EOF'
+[Desktop]
+Session=openbox
+EOF
+chown loongson:loongson /home/loongson/.dmrc
+mkdir -p /etc/xdg/lightdm/lightdm.conf.d
+cat >/etc/xdg/lightdm/lightdm.conf.d/50-openbox-test.conf <<'EOF'
+[Seat:*]
+user-session=openbox
+EOF
+```
+
+In the Loongnix repository, `/usr/share/xsessions/openbox.desktop` runs `Exec=/usr/bin/openbox-session`, which reads the `~/.config/openbox/autostart` file above. `.dmrc` and `50-openbox-test.conf` pin the default login session to Openbox so LightDM does not enter `lightdm-xsession` and then start Plasma. This LightDM build reads `/etc/xdg/lightdm/lightdm.conf.d`; do not place the custom snippets under `/etc/lightdm/lightdm.conf.d`.
+
+If `sddm` was installed earlier, prefer LightDM for this lightweight setup so the display managers do not compete for the default entry point:
+
+```bash
+printf '/usr/sbin/lightdm\n' >/etc/X11/default-display-manager
+systemctl disable sddm || true
+systemctl enable lightdm
+systemctl set-default graphical.target
+```
+
+In this Loongnix image, `lightdm.service` may report `static`; that does not necessarily mean the configuration failed. Check the default display-manager file, confirm `sddm` is disabled, and start LightDM:
+
+```bash
+cat /etc/X11/default-display-manager
+systemctl is-enabled sddm || true
+systemctl start lightdm
+systemctl status lightdm --no-pager
+```
+
+If you had already logged into Plasma or another session before applying this configuration, restart LightDM:
+
+```bash
+systemctl restart lightdm
+```
+
+For faster repeated testing, you can also enable automatic login to Openbox for `loongson` in this local test VM:
+
+```bash
+cat >/etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf <<'EOF'
+[Seat:*]
+autologin-user=loongson
+autologin-user-timeout=0
+user-session=openbox
+autologin-session=openbox
+EOF
+systemctl restart lightdm
+```
+
+Autologin is recommended only for a local test VM. To keep the login screen, remove the file and restart LightDM:
+
+```bash
+rm -f /etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf
+systemctl restart lightdm
+```
+
+After confirming that the QEMU window shows a graphical login manager, reboot once to verify persistence:
+
+```bash
+reboot
+```
+
+After reboot, the QEMU window should enter the LightDM graphical login manager. Log in as `loongson` / `Loongson20` and choose Openbox. After login, the tint2 panel/tray and LXTerminal should appear.
+
+When startup succeeds, `systemctl status lightdm --no-pager` should show `active (running)`, and the process list should include `/usr/sbin/lightdm` plus `/usr/lib/xorg/Xorg :0 ... vt7`.
 
 If package names differ in your repository, search first:
 
 ```bash
-apt-cache search plasma-desktop
-apt-cache search kde | grep -E 'desktop|plasma'
-apt-cache search sddm
+apt-cache search lightdm
+apt-cache search openbox
+apt-cache search tint2
 ```
 
-Enable graphical login and reboot:
+If one package download fails temporarily, retry with:
 
 ```bash
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
+```
+
+In the tested Loongnix repositories, the `xfce4` meta package fails because theme packages required by `xfce4-settings` are not installable, and the `lxde` meta package references `lxpanel/pcmanfm` packages with no candidate version. Do not use the Xfce/LXDE meta packages as the default path. To re-check:
+
+```bash
+apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
+apt-cache policy xfce4-session xfce4-settings xfwm4 xfdesktop4
+```
+
+### 5.4 Optional: Install Full KDE/Plasma Desktop
+
+If you want to test fuller KDE/Plasma desktop behavior, install `sddm`, `plasma-desktop`, `konsole`, and `dolphin`. It is more feature-complete, but the download and install size is much larger, so it is not the default recommendation for this test VM.
+
+```bash
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio sddm plasma-desktop konsole dolphin iproute2
+systemctl disable lightdm || true
 systemctl enable sddm
 systemctl set-default graphical.target
 reboot
 ```
 
-After reboot, the QEMU window should enter a graphical login manager. Log in as `loongson` / `Loongson20`.
-
-### 5.4 Fallback: Install A Lightweight Desktop
-
-If Plasma/KDE packages are unavailable, install Xfce as a test shell. It is enough for Avalonia/X11 rendering, window, audio, and tray acceptance:
-
-```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfce4 xfce4-terminal
-systemctl enable lightdm
-systemctl set-default graphical.target
-reboot
-```
-
-After reboot, log in as `loongson` in Xfce and continue with ClassIsland testing. If the tray area is not visible by default, enable the notification/status tray plugin in the panel.
+The tested Loongnix repositories provide these KDE packages, but a full KDE install downloads nearly 500 MB and is more likely to be interrupted on an unstable network.
 
 ### 5.5 Why tty Or SSH Is Not Enough
 

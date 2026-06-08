@@ -37,14 +37,14 @@ After entering the graphical desktop, verify from a desktop terminal:
 echo "$DISPLAY"
 echo "$XDG_SESSION_TYPE"
 echo "$XDG_CURRENT_DESKTOP"
-ps -ef | grep -E 'sddm|lightdm|plasmashell|xfce4|kwin' | grep -v grep
+ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|plasmashell|kwin' | grep -v grep
 ```
 
 Expected:
 
 - `DISPLAY` is set, for example `:0`.
 - The session is X11, or can at least launch X11 applications.
-- A visible desktop, panel/tray area, and terminal are available.
+- A visible desktop, panel/tray area, and terminal are available. With the recommended lightweight setup, expect `lightdm`, `Xorg`, `openbox`, `tint2`, and `lxterminal`.
 
 If SSH works but there is no visible X11 desktop, only command-line diagnostics are possible; Avalonia/X11 rendering, tray, and audio acceptance is not complete.
 
@@ -132,11 +132,12 @@ Package installation requires root privileges.
 
 ## Tray Checks
 
-For KDE/X11 tray testing, first check:
+For tray testing in the recommended Openbox lightweight environment, first check:
 
 ```bash
 echo "$XDG_CURRENT_DESKTOP"
 echo "$DESKTOP_SESSION"
+ps -ef | grep -E 'tint2|openbox' | grep -v grep
 ```
 
 Then test tray menu, hide-to-tray, restore-from-tray, and exit actions. Tray behavior should be manually accepted in this environment.
