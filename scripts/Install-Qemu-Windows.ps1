@@ -134,8 +134,10 @@ function Invoke-WingetInstall {
 
     Write-Host "Installing QEMU with winget..."
     Write-Host "winget $($Args -join ' ')"
-    & $WingetPath @Args
-    $ExitCode = $LASTEXITCODE
+    & $WingetPath @Args 2>&1 | ForEach-Object {
+        Write-Host $_
+    }
+    $ExitCode = [int]$LASTEXITCODE
     $global:LASTEXITCODE = 0
 
     return $ExitCode
