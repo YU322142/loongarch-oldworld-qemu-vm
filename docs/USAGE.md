@@ -167,9 +167,9 @@ Default features:
 - Host `shared\` folder as a guest disk.
 - SSH port forwarding `127.0.0.1:2222 -> guest:22`.
 
-Do not maximize the QEMU window while the VM is still booting. During firmware, GRUB, kernel loading, or desktop initialization, maximizing the visible window has been observed to make QEMU or the guest display stop responding. Keep the default window size until LightDM or Loongnix X11 Test Desktop is visible and stable, then continue. If it already hangs, close the QEMU window and start again; use `-Snapshot` for temporary tests if you want to avoid boot-time mistakes affecting the work disk.
+During boot, if the QEMU window is temporarily black, white, or otherwise has no stable guest image, keep the mouse pointer outside the QEMU window. The observed trigger is the mouse staying inside the VM window during a no-display phase, not maximizing by itself. Wait until LightDM or Loongnix X11 Test Desktop is visible and stable before using the mouse inside the VM. If it already hangs or QEMU exits, close the QEMU window and start again; use `-Snapshot` for temporary tests if you want to avoid boot-time mistakes affecting the work disk.
 
-Avoid maximizing or resizing the QEMU window while the desktop session is running. SDL window-size changes have been observed to offset mouse click positions: the pointer may appear over a button, menu item, or tray icon, while the actual click lands elsewhere. Keep the startup window size fixed for tray, menu, button, and window-drag acceptance. If the pointer is already offset, first restore the original window size; if it remains wrong, close QEMU and start again.
+After the desktop is stable, you may adjust the window if needed, but keep the window size stable during acceptance. SDL window-size changes may offset mouse click positions: the pointer may appear over a button, menu item, or tray icon, while the actual click lands elsewhere. Before tray, menu, button, and window-drag acceptance, confirm that mouse clicks still align. If the pointer is already offset, first restore the original window size; if it remains wrong, close QEMU and start again.
 
 It is normal for PowerShell not to return immediately after startup. By default, the script waits until the QEMU window closes. To return to PowerShell immediately after launch, use:
 
@@ -178,6 +178,8 @@ It is normal for PowerShell not to return immediately after startup. By default,
 ```
 
 The serial log may stop around `Loading Linux ...` or `Loading initial ramdisk ...` after GRUB hands control to Linux. Continue by watching the visible QEMU window instead of judging boot progress only from the serial log.
+
+If the serial log stops at `Loading initial ramdisk ...` and the QEMU process has already exited while the SSH port is closed, that boot attempt has failed. Before starting again, make sure the mouse pointer is outside the QEMU window during black/no-display boot phases.
 
 Log in to Loongnix:
 
@@ -869,13 +871,13 @@ By default, this creates a qcow2 backing work disk, which is faster and smaller.
 
 This is expected. LoongArch on a Windows/x86 host uses TCG emulation. Copy the app to the guest local disk before running it and reduce host background load.
 
-### QEMU Hangs After Maximizing During Boot
+### QEMU Hangs During A Blank Or No-Display Boot Phase
 
-Do not maximize the QEMU window during firmware, GRUB, kernel loading, or desktop initialization. Changing the SDL window size at that stage has been observed to make QEMU or the guest display stop responding. Resize the window only after LightDM or Loongnix X11 Test Desktop is visible; if it already hangs, close the QEMU window and start again.
+During firmware, GRUB, kernel loading, or desktop initialization, if the QEMU window is temporarily black, white, or has no stable guest image, keep the mouse pointer outside the QEMU window. The observed trigger is the mouse staying inside the VM window during a no-display phase, not maximizing by itself. Use the mouse inside the VM only after LightDM or Loongnix X11 Test Desktop is visible; if it already hangs or QEMU exits, close the QEMU window and start again.
 
 ### Mouse Clicks Do Not Match The Pointer Position
 
-Maximizing the QEMU window or dragging its edges while the desktop is running can offset mouse click positions. The pointer may appear over a button, menu item, or tray icon, but the actual click lands elsewhere. When accepting desktop apps such as ClassIsland or OpenRemoteShouter, keep the QEMU startup window size fixed. If clicks are already offset, restore the original window size first; if that does not help, close QEMU and start again before testing mouse interactions.
+Changing the QEMU window size while the desktop is running can offset mouse click positions. The pointer may appear over a button, menu item, or tray icon, but the actual click lands elsewhere. When accepting desktop apps such as ClassIsland or OpenRemoteShouter, keep the QEMU window size stable. If clicks are already offset, restore the original window size first; if that does not help, close QEMU and start again before testing mouse interactions.
 
 ### Image Wallpaper Is Set But The Desktop Is Still Solid Color
 

@@ -170,6 +170,8 @@ if ($EnableHostShare) {
 Write-Host "Serial log: $SerialLog"
 Write-Host "PowerShell waits while the QEMU window is open. Close the QEMU window to return to the prompt, or start with -NoWait."
 Write-Host "The serial log may stop updating after GRUB hands off to Linux; continue by watching the visible QEMU window."
+Write-Host "During boot, keep the mouse pointer outside the QEMU window while the guest screen is blank or has no stable image."
+Write-Host "After LightDM or the desktop is visible, adjust the window only if needed and re-check mouse click alignment."
 Write-Host ""
 
 $Process = Start-Process -FilePath $Qemu -ArgumentList $Args -PassThru
