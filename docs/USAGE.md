@@ -27,7 +27,7 @@ Use the repository script to install the tested Windows QEMU package:
 .\scripts\Install-Qemu-Windows.ps1
 ```
 
-The script installs QEMU with winget, then copies the installed QEMU directory to this repository's `tools\qemu` by default. This lets `Download-LoongnixImage.ps1`, `Start-Loongnix-Desktop.ps1`, and `Reset-WorkDisk.ps1` find `qemu-img.exe` and `qemu-system-loongarch64.exe` from the project directory first.
+The script installs QEMU with winget and tries to install it directly into this repository's `tools\qemu` by default. If the QEMU installer does not support `--location`, the script falls back to a system install and then copies the installed directory to `tools\qemu`. This lets `Download-LoongnixImage.ps1`, `Start-Loongnix-Desktop.ps1`, and `Reset-WorkDisk.ps1` find `qemu-img.exe` and `qemu-system-loongarch64.exe` from the project directory first.
 
 `tools\qemu` is ignored by Git and excluded from this project's Release packages. Do not commit QEMU binaries to the repository. If you redistribute QEMU, comply with QEMU and dependency license requirements.
 
@@ -37,14 +37,20 @@ If you only want the system install and do not want a local copy under `tools\qe
 .\scripts\Install-Qemu-Windows.ps1 -NoCopyToRepo
 ```
 
-If QEMU is already installed, you can run the script again to refresh `tools\qemu`. The launcher searches:
+If QEMU is already installed, you can run the script again to refresh `tools\qemu`. If QEMU is installed somewhere the script cannot find, pass that QEMU directory to the install script:
+
+```powershell
+.\scripts\Install-Qemu-Windows.ps1 -QemuDir D:\Path\To\qemu
+```
+
+The launcher searches:
 
 - `tools\qemu`
 - `C:\Program Files\qemu`
 - `C:\Program Files (x86)\qemu`
 - system `PATH`
 
-If QEMU is somewhere else:
+If QEMU is somewhere else, you can also pass it when starting:
 
 ```powershell
 .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu

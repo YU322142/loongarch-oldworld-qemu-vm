@@ -11,7 +11,7 @@ This repository licenses its scripts and documentation under MIT. The components
 - Website: [https://www.qemu.org/](https://www.qemu.org/)
 - License note: [https://www.qemu.org/docs/master/about/license.html](https://www.qemu.org/docs/master/about/license.html)
 
-`scripts/Install-Qemu-Windows.ps1` copies the locally installed QEMU directory to `tools/qemu/` by default so project scripts can find QEMU from the project directory first. The repository does not commit `tools/qemu/`, and Release packages do not include it. If you redistribute QEMU binaries in a Release, you must comply with QEMU and dependency licenses, including source-code availability requirements where applicable.
+`scripts/Install-Qemu-Windows.ps1` tries to install QEMU into `tools/qemu/` by default, or copies an existing local QEMU directory there, so project scripts can find QEMU from the project directory first. The repository does not commit `tools/qemu/`, and Release packages do not include it. If you redistribute QEMU binaries in a Release, you must comply with QEMU and dependency licenses, including source-code availability requirements where applicable.
 
 ## Loongnix Desktop Mini qcow2
 

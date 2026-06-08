@@ -4,7 +4,7 @@
 
 | 脚本 | 作用 |
 | --- | --- |
-| `Install-Qemu-Windows.ps1` | 用 winget 安装已测试过的 Windows QEMU，并默认复制到被 Git 忽略的 `tools\qemu`；仓库和 Release 不包含 QEMU。传 `-NoCopyToRepo` 可跳过复制。 |
+| `Install-Qemu-Windows.ps1` | 用 winget 安装已测试过的 Windows QEMU，默认安装/复制到被 Git 忽略的 `tools\qemu`；仓库和 Release 不包含 QEMU。传 `-QemuDir` 可指定已有 QEMU 目录，传 `-NoCopyToRepo` 可跳过复制。 |
 | `Download-LoongnixImage.ps1` | 下载并校验 Loongnix qcow2 镜像，然后用 `qemu-img.exe` 创建可写工作盘；只下载镜像可传 `-SkipWorkDisk`。 |
 | `Start-Loongnix-Desktop.ps1` | 启动可见 LoongArch 旧世界 X11 测试虚拟机，配置工作盘、UEFI、声音、网络、SSH 转发和共享盘。 |
 | `Stop-Loongnix.ps1` | 停止匹配的 QEMU 进程。 |
@@ -28,7 +28,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 
 | Script | Purpose |
 | --- | --- |
-| `Install-Qemu-Windows.ps1` | Install the tested Windows QEMU package with winget and copy it to ignored `tools\qemu` by default; QEMU is not included in this repository or Release. Pass `-NoCopyToRepo` to skip the copy. |
+| `Install-Qemu-Windows.ps1` | Install the tested Windows QEMU package with winget and install/copy it to ignored `tools\qemu` by default; QEMU is not included in this repository or Release. Pass `-QemuDir` to use an existing QEMU directory, or `-NoCopyToRepo` to skip the copy. |
 | `Download-LoongnixImage.ps1` | Download and verify the Loongnix qcow2 image, then create a writable work disk with `qemu-img.exe`; pass `-SkipWorkDisk` to download only. |
 | `Start-Loongnix-Desktop.ps1` | Start the visible LoongArch old-world X11 test VM and configure the work disk, UEFI, audio, networking, SSH forwarding, and shared disk. |
 | `Stop-Loongnix.ps1` | Stop matching QEMU processes. |

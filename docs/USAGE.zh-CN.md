@@ -27,7 +27,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\Install-Qemu-Windows.ps1
 ```
 
-这个脚本会先通过 winget 安装 QEMU，然后默认把安装目录复制一份到本仓库的 `tools\qemu`。这样后续 `Download-LoongnixImage.ps1`、`Start-Loongnix-Desktop.ps1` 和 `Reset-WorkDisk.ps1` 都能优先从项目目录找到 `qemu-img.exe` 和 `qemu-system-loongarch64.exe`。
+这个脚本会先通过 winget 安装 QEMU，并默认尝试直接安装到本仓库的 `tools\qemu`。如果 QEMU installer 不支持 `--location`，脚本会退回系统安装，再把安装目录复制到 `tools\qemu`。这样后续 `Download-LoongnixImage.ps1`、`Start-Loongnix-Desktop.ps1` 和 `Reset-WorkDisk.ps1` 都能优先从项目目录找到 `qemu-img.exe` 和 `qemu-system-loongarch64.exe`。
 
 `tools\qemu` 会被 Git 忽略，也不会打进本项目 Release。不要把 QEMU 二进制提交到仓库；如果要再分发 QEMU，需要遵守 QEMU 及其依赖库的许可证要求。
 
@@ -37,14 +37,20 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\Install-Qemu-Windows.ps1 -NoCopyToRepo
 ```
 
-如果你已经安装了 QEMU，也可以重新运行上面的脚本把当前 QEMU 复制到 `tools\qemu`。启动时脚本会尝试从下面位置寻找 QEMU：
+如果你已经安装了 QEMU，也可以重新运行上面的脚本把当前 QEMU 复制到 `tools\qemu`。如果 QEMU 装在脚本找不到的位置，把 QEMU 目录传给安装脚本：
+
+```powershell
+.\scripts\Install-Qemu-Windows.ps1 -QemuDir D:\Path\To\qemu
+```
+
+启动时脚本会尝试从下面位置寻找 QEMU：
 
 - `tools\qemu`
 - `C:\Program Files\qemu`
 - `C:\Program Files (x86)\qemu`
 - 系统 `PATH`
 
-如果 QEMU 在其他目录，启动时传入：
+如果 QEMU 在其他目录，启动时也可以传入：
 
 ```powershell
 .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu

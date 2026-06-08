@@ -11,7 +11,7 @@
 - 官网：[https://www.qemu.org/](https://www.qemu.org/)
 - 许可说明：[https://www.qemu.org/docs/master/about/license.html](https://www.qemu.org/docs/master/about/license.html)
 
-`scripts/Install-Qemu-Windows.ps1` 会默认把本机安装的 QEMU 复制到 `tools/qemu/`，方便本项目脚本优先从项目目录找到 QEMU。仓库不会提交 `tools/qemu/`，Release 也不会包含它。如果你选择在 Release 中再分发 QEMU 二进制，需要同时满足 QEMU 及其依赖库的许可证要求，并提供相应源码或源码获取方式。
+`scripts/Install-Qemu-Windows.ps1` 会默认尝试把 QEMU 安装到 `tools/qemu/`，或把本机已有 QEMU 复制到 `tools/qemu/`，方便本项目脚本优先从项目目录找到 QEMU。仓库不会提交 `tools/qemu/`，Release 也不会包含它。如果你选择在 Release 中再分发 QEMU 二进制，需要同时满足 QEMU 及其依赖库的许可证要求，并提供相应源码或源码获取方式。
 
 ## Loongnix Desktop mini qcow2
 
