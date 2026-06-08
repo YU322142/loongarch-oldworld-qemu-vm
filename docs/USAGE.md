@@ -605,8 +605,10 @@ Loongnix X11 Test Desktop is a lightweight test session. It does not start a des
 and runs this when Loongnix X11 Test Desktop starts:
 
 ```bash
-feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png"
+loongnix-apply-wallpaper
 ```
+
+`loongnix-apply-wallpaper` is a helper installed inside the guest by the one-shot setup script. It applies the image with `feh --bg-fill` and only falls back to the gray solid color when the image or `feh` is missing. The session waits until the window manager, panel, terminal, and file manager have started, then reapplies the wallpaper a few more times so later X11 components are less likely to overwrite the root-window wallpaper with gray.
 
 To replace the default wallpaper, overwrite this file on the Windows host before starting the VM or remounting the shared disk:
 
@@ -627,7 +629,13 @@ exit
 Back in the `loongson` desktop terminal, apply it temporarily:
 
 ```bash
-feh --bg-fill ~/Pictures/loongnix-test-wallpaper.png
+loongnix-apply-wallpaper
+```
+
+You can also pass an explicit image path:
+
+```bash
+loongnix-apply-wallpaper ~/Pictures/loongnix-test-wallpaper.png
 ```
 
 To temporarily switch to a solid color, run from the desktop terminal:
@@ -636,7 +644,14 @@ To temporarily switch to a solid color, run from the desktop terminal:
 xsetroot -solid '#2f343f'
 ```
 
-If the old or solid background is still visible after setting the wallpaper, drag LXTerminal or Xfe fully across the desktop area once. That usually triggers an X11 root-window repaint and makes the wallpaper appear. This is a known behavior of the current lightweight session and does not mean `pic.png` failed to copy.
+If the wallpaper appears first and then turns gray a few seconds later, the image and `feh` are usually fine; rerun the updated one-shot setup script and reboot so the session can reapply the wallpaper after the later desktop components start. For a temporary fix, first run `loongnix-apply-wallpaper` from the `loongson` desktop terminal. If the background is still gray, check that both `feh` and the image exist:
+
+```bash
+command -v feh
+ls -l ~/Pictures/loongnix-test-wallpaper.png
+```
+
+If both are present, drag LXTerminal or Xfe fully across the desktop area once. That usually triggers an X11 root-window repaint and makes the wallpaper appear. This is a known behavior of the current lightweight session and does not mean `pic.png` failed to copy.
 
 For checking Avalonia transparent windows, shadows, and edges, a solid background makes edge issues easier to spot. Image wallpapers are useful for re-checking transparency, compositor behavior, and desktop repainting.
 
@@ -817,7 +832,13 @@ Maximizing the QEMU window or dragging its edges while the desktop is running ca
 
 ### Image Wallpaper Is Set But The Desktop Is Still Solid Color
 
-The lightweight session does not start a full desktop manager, so the image wallpaper may not trigger a full-screen repaint immediately. After confirming that `/home/loongson/Pictures/loongnix-test-wallpaper.png` exists, drag LXTerminal or Xfe fully across the desktop area once. The area covered by the window should repaint and show the wallpaper from `shared\pic.png`.
+The lightweight session does not start a full desktop manager, so the image wallpaper may not trigger a full-screen repaint immediately. First run this from the `loongson` desktop terminal:
+
+```bash
+loongnix-apply-wallpaper
+```
+
+If the wallpaper appears first and then turns gray a few seconds later, rerun the updated `shared/setup-loongnix-test-desktop.sh` and reboot; the updated session reapplies the wallpaper after desktop components finish starting. If the background is still gray, confirm that `/home/loongson/Pictures/loongnix-test-wallpaper.png` and `feh` exist, then drag LXTerminal or Xfe fully across the desktop area once. The area covered by the window should repaint and show the wallpaper from `shared\pic.png`.
 
 ### No Audio
 

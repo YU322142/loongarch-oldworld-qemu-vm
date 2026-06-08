@@ -605,8 +605,10 @@ Loongnix X11 Test Desktop 是轻量测试会话，不启动 `xfdesktop` 或 `pcm
 并在 Loongnix X11 Test Desktop 启动时执行：
 
 ```bash
-feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png"
+loongnix-apply-wallpaper
 ```
+
+`loongnix-apply-wallpaper` 是一键配置脚本写入 guest 的辅助命令。它会优先用 `feh --bg-fill` 设置图片壁纸；只有在没有图片或没有 `feh` 时才回退到灰色纯色背景。会话会等窗口管理器、面板和文件管理器启动后再应用壁纸，并在稍后补跑几次，避免壁纸先显示、随后又被后续 X11 组件覆盖成灰色。
 
 如果要换默认壁纸，在 Windows 宿主机启动虚拟机或重新挂载共享盘前，把新图片覆盖为：
 
@@ -627,7 +629,13 @@ exit
 回到 `loongson` 桌面终端后临时应用图片壁纸：
 
 ```bash
-feh --bg-fill ~/Pictures/loongnix-test-wallpaper.png
+loongnix-apply-wallpaper
+```
+
+也可以显式指定图片：
+
+```bash
+loongnix-apply-wallpaper ~/Pictures/loongnix-test-wallpaper.png
 ```
 
 临时改成纯色背景，在桌面终端中运行：
@@ -636,7 +644,14 @@ feh --bg-fill ~/Pictures/loongnix-test-wallpaper.png
 xsetroot -solid '#2f343f'
 ```
 
-如果壁纸设置后仍然看到旧背景或纯色背景，把 LXTerminal 或 Xfe 窗口完整拖过桌面区域一次，触发 X11 根窗口重绘后通常就会显示。这个现象是当前轻量会话的已知行为，不代表 `pic.png` 没有复制成功。
+如果壁纸先显示、几秒后又变成灰色，说明图片和 `feh` 本身通常是正常的，重新运行新版一键配置脚本后重启即可让会话在后续启动阶段补设壁纸。临时处理时，先在 `loongson` 桌面终端运行 `loongnix-apply-wallpaper`。如果仍然是灰色，检查 `feh` 和图片是否存在：
+
+```bash
+command -v feh
+ls -l ~/Pictures/loongnix-test-wallpaper.png
+```
+
+两者都正常时，把 LXTerminal 或 Xfe 窗口完整拖过桌面区域一次，触发 X11 根窗口重绘后通常就会显示。这个现象是当前轻量会话的已知行为，不代表 `pic.png` 没有复制成功。
 
 如果只是为了观察 Avalonia 透明窗口、阴影和边缘，纯色背景更容易定位边缘问题；图片壁纸适合复查透明区域、合成效果和桌面背景重绘。
 
@@ -817,7 +832,13 @@ OpenRemoteShouter 这类远程/音频应用建议额外测试：
 
 ### 设置了图片壁纸但桌面仍是纯色
 
-当前轻量会话不启动完整桌面管理器，图片壁纸可能不会立刻触发整屏重绘。确认 `/home/loongson/Pictures/loongnix-test-wallpaper.png` 存在后，把 LXTerminal 或 Xfe 窗口完整拖过桌面区域一次；通常拖过的区域会刷新出 `shared\pic.png` 设置的壁纸。
+当前轻量会话不启动完整桌面管理器，图片壁纸可能不会立刻触发整屏重绘。先在 `loongson` 桌面终端运行：
+
+```bash
+loongnix-apply-wallpaper
+```
+
+如果是先显示壁纸、几秒后又变成灰色，重新运行新版 `shared/setup-loongnix-test-desktop.sh` 后重启；新版会话会在桌面组件启动完成后补设壁纸。如果仍然是灰色，确认 `/home/loongson/Pictures/loongnix-test-wallpaper.png` 和 `feh` 存在后，把 LXTerminal 或 Xfe 窗口完整拖过桌面区域一次；通常拖过的区域会刷新出 `shared\pic.png` 设置的壁纸。
 
 ### 没声音
 

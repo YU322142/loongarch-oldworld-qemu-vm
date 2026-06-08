@@ -78,6 +78,7 @@ xfce4-notifyd
 libnotify-bin
 lxterminal
 xfe
+feh
 x11-xserver-utils
 iproute2
 locales
@@ -151,6 +152,24 @@ systemctl enable ssh >/dev/null 2>&1 || true
 systemctl restart ssh >/dev/null 2>&1 || systemctl start ssh >/dev/null 2>&1 || warn "Could not start ssh.service"
 
 log "Creating Loongnix X11 test desktop session for $TEST_USER"
+cat >/usr/local/bin/loongnix-apply-wallpaper <<'EOF'
+#!/bin/sh
+# Apply the test wallpaper to the current X11 root window.
+
+WALLPAPER="${1:-$HOME/Pictures/loongnix-test-wallpaper.png}"
+
+set_solid_background() {
+    command -v xsetroot >/dev/null 2>&1 && xsetroot -solid '#d8e0e5' || true
+}
+
+if command -v feh >/dev/null 2>&1 && [ -f "$WALLPAPER" ]; then
+    feh --no-fehbg --bg-fill "$WALLPAPER" >/dev/null 2>&1 || true
+else
+    set_solid_background
+fi
+EOF
+chmod 0755 /usr/local/bin/loongnix-apply-wallpaper
+
 cat >/usr/local/bin/loongnix-test-session <<'EOF'
 #!/bin/sh
 # Lightweight visible X11 test session for LoongArch old-world application testing.
@@ -216,16 +235,6 @@ pkill -x tint2 >/dev/null 2>&1 || true
 pkill -x stalonetray >/dev/null 2>&1 || true
 pkill -x xcompmgr >/dev/null 2>&1 || true
 
-set_solid_background() {
-    command -v xsetroot >/dev/null 2>&1 && xsetroot -solid '#d8e0e5' || true
-}
-
-if command -v feh >/dev/null 2>&1 && [ -f "$HOME/Pictures/loongnix-test-wallpaper.png" ]; then
-    feh --bg-fill "$HOME/Pictures/loongnix-test-wallpaper.png" >/dev/null 2>&1 || set_solid_background
-else
-    set_solid_background
-fi
-command -v xrefresh >/dev/null 2>&1 && xrefresh >/dev/null 2>&1 || true
 command -v pulseaudio >/dev/null 2>&1 && pulseaudio --start >/dev/null 2>&1 || true
 
 if [ -x /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd ]; then
@@ -243,6 +252,14 @@ xfce4-panel --disable-wm-check >/dev/null 2>&1 &
 sleep 1
 lxterminal >/dev/null 2>&1 &
 xfe >/dev/null 2>&1 &
+sleep 2
+loongnix-apply-wallpaper
+(
+    sleep 5
+    loongnix-apply-wallpaper
+    sleep 10
+    loongnix-apply-wallpaper
+) >/dev/null 2>&1 &
 
 wait "$WM_PID"
 EOF
