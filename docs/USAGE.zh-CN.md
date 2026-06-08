@@ -271,12 +271,12 @@ shared\setup-loongnix-test-desktop.sh
 它会在 Loongnix 内完成下面这些操作：
 
 - 启用 SSH 服务。
-- 安装 X11、LightDM、`xfwm4` 合成窗口管理器、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、`feh` 壁纸工具、声音工具和通知支持。
+- 安装 X11、LightDM、`xfwm4` 合成窗口管理器、Xfce panel、StatusNotifier/systray 托盘插件、`xfdesktop4` 壁纸/桌面背景管理器、LXTerminal、Xfe 图形文件管理器、`feh` 壁纸回退工具、声音工具和通知支持。
 - 生成 `zh_CN.UTF-8` locale，安装中文字体，并把系统默认语言尽量切到中文。
 - 把时区设置为 `Asia/Shanghai`。
 - 配置 LightDM 默认进入 `loongnix-test` 会话，并建立 `display-manager.service` 链接，避免重启后只停在 `tty1`。
 - 默认启用 `loongson` 自动登录，方便反复测试。
-- 默认把共享目录中的 `pic.png` 复制为 `loongson` 用户壁纸，并在会话启动时用 `feh` 设置；如果没有 `pic.png`，则回退到纯色背景。
+- 默认把共享目录中的 `pic.png` 复制为 `loongson` 用户壁纸，并在会话启动时优先交给 `xfdesktop4` 管理；如果 `xfdesktop4` 不可用，则用 `feh` 回退设置；如果没有 `pic.png`，则回退到纯色背景。
 
 如果虚拟机停在 `tty1`，先用 `root` / `Loongson20` 登录，然后挂载共享盘并运行脚本：
 
@@ -306,7 +306,7 @@ WALLPAPER_SOURCE=/mnt/hostshare/other.png sh /mnt/hostshare/setup-loongnix-test-
 REBOOT_AFTER=1 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 ```
 
-脚本执行完并重启后，QEMU 窗口应进入 Loongnix X11 Test Desktop；默认能看到 Xfce panel 托盘、LXTerminal 和 Xfe 文件管理器。这个会话使用 `xfwm4 --compositor=on`，用于覆盖 ClassIsland 这类 Avalonia 透明窗口；托盘同时提供 StatusNotifier 和传统 systray。图片壁纸有时不会立刻重绘出来，需要把 LXTerminal 或 Xfe 窗口完整拖过桌面区域后才会显示。脚本执行失败或你想调整安装内容时，继续按下面的手动教程操作。
+脚本执行完并重启后，QEMU 窗口应进入 Loongnix X11 Test Desktop；默认能看到 Xfce panel 托盘、LXTerminal 和 Xfe 文件管理器。这个会话使用 `xfwm4 --compositor=on`，用于覆盖 ClassIsland 这类 Avalonia 透明窗口；托盘同时提供 StatusNotifier 和传统 systray；壁纸默认由 `xfdesktop4` 管理，避免启动时先显示图片、随后又被覆盖成灰色。脚本执行失败或你想调整安装内容时，继续按下面的手动教程操作。
 
 ### 5.3 诊断桌面组件是否已安装
 
@@ -362,16 +362,16 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、`xfwm4`、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、`feh` 壁纸工具、通知支持、中文字体、locale 工具和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、透明窗口合成、声音、通知、托盘图标、壁纸重绘和图形文件浏览验收：
+推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、`xfwm4`、Xfce panel、StatusNotifier/systray 托盘插件、`xfdesktop4` 壁纸/桌面背景管理器、LXTerminal、Xfe 图形文件管理器、`feh` 壁纸回退工具、通知支持、中文字体、locale 工具和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、透明窗口合成、声音、通知、托盘图标、稳定壁纸和图形文件浏览验收：
 
 可以先模拟安装，确认依赖能解析：
 
 ```bash
-apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin lxterminal xfe feh xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin xfdesktop4 lxterminal xfe feh xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe feh xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application xfdesktop4 lxterminal xfe feh xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 配置中文系统语言、中文字体缓存和中国时区：
@@ -596,7 +596,7 @@ apt-cache policy xfe feh thunar caja dolphin xfce4-session xfce4-settings xfwm4 
 
 ### 5.5 可选：设置测试桌面壁纸
 
-Loongnix X11 Test Desktop 是轻量测试会话，不启动 `xfdesktop` 或 `pcmanfm` 这类桌面管理器，因此桌面右键菜单里通常没有完整壁纸设置。本仓库默认提交 `shared\pic.png`，一键配置脚本会在 guest 中把它复制到：
+Loongnix X11 Test Desktop 是轻量测试会话，默认启动 `xfdesktop4` 来稳定管理桌面背景，但不安装完整 Xfce 元包。本仓库默认提交 `shared\pic.png`，一键配置脚本会在 guest 中把它复制到：
 
 ```text
 /home/loongson/Pictures/loongnix-test-wallpaper.png
@@ -608,7 +608,7 @@ Loongnix X11 Test Desktop 是轻量测试会话，不启动 `xfdesktop` 或 `pcm
 loongnix-apply-wallpaper
 ```
 
-`loongnix-apply-wallpaper` 是一键配置脚本写入 guest 的辅助命令。它会优先用 `feh --bg-fill` 设置图片壁纸；只有在没有图片或没有 `feh` 时才回退到灰色纯色背景。会话会等窗口管理器、面板和文件管理器启动后再应用壁纸，并在稍后补跑几次，避免壁纸先显示、随后又被后续 X11 组件覆盖成灰色。
+`loongnix-apply-wallpaper` 是一键配置脚本写入 guest 的辅助命令。它会优先通过 `xfdesktop4`/`xfconf-query` 设置图片壁纸；如果 `xfdesktop4` 不可用，才回退到 `feh --bg-fill`；只有在没有图片、没有 `xfdesktop4` 且没有 `feh` 时才回退到灰色纯色背景。会话会等窗口管理器、面板和文件管理器启动后再应用壁纸，并在稍后补跑几次，避免壁纸先显示、随后又被后续 X11 组件覆盖成灰色。
 
 如果要换默认壁纸，在 Windows 宿主机启动虚拟机或重新挂载共享盘前，把新图片覆盖为：
 
@@ -647,7 +647,7 @@ xsetroot -solid '#2f343f'
 如果壁纸先显示、几秒后又变成灰色，说明图片和 `feh` 本身通常是正常的，重新运行新版一键配置脚本后重启即可让会话在后续启动阶段补设壁纸。临时处理时，先在 `loongson` 桌面终端运行 `loongnix-apply-wallpaper`。如果仍然是灰色，检查 `feh` 和图片是否存在：
 
 ```bash
-command -v feh
+command -v xfdesktop || command -v feh
 ls -l ~/Pictures/loongnix-test-wallpaper.png
 ```
 
@@ -838,7 +838,7 @@ OpenRemoteShouter 这类远程/音频应用建议额外测试：
 loongnix-apply-wallpaper
 ```
 
-如果是先显示壁纸、几秒后又变成灰色，重新运行新版 `shared/setup-loongnix-test-desktop.sh` 后重启；新版会话会在桌面组件启动完成后补设壁纸。如果仍然是灰色，确认 `/home/loongson/Pictures/loongnix-test-wallpaper.png` 和 `feh` 存在后，把 LXTerminal 或 Xfe 窗口完整拖过桌面区域一次；通常拖过的区域会刷新出 `shared\pic.png` 设置的壁纸。
+如果是先显示壁纸、几秒后又变成灰色，重新运行新版 `shared/setup-loongnix-test-desktop.sh` 后重启；新版会话会用 `xfdesktop4` 接管壁纸并在桌面组件启动完成后补设。如果仍然是灰色，确认 `/home/loongson/Pictures/loongnix-test-wallpaper.png` 和 `xfdesktop` 或 `feh` 存在后，再运行 `loongnix-apply-wallpaper`。
 
 ### 没声音
 

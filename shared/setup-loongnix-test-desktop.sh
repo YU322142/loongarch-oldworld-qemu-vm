@@ -76,6 +76,7 @@ libappindicator3-1
 ayatana-indicator-application
 xfce4-notifyd
 libnotify-bin
+xfdesktop4
 lxterminal
 xfe
 feh
@@ -158,11 +159,45 @@ cat >/usr/local/bin/loongnix-apply-wallpaper <<'EOF'
 
 WALLPAPER="${1:-$HOME/Pictures/loongnix-test-wallpaper.png}"
 
+log() {
+    printf '%s\n' "$*"
+}
+
 set_solid_background() {
     command -v xsetroot >/dev/null 2>&1 && xsetroot -solid '#d8e0e5' || true
 }
 
-if command -v feh >/dev/null 2>&1 && [ -f "$WALLPAPER" ]; then
+set_xfdesktop_prop() {
+    property="$1"
+    type="$2"
+    value="$3"
+    xfconf-query -c xfce4-desktop -p "$property" -n -t "$type" -s "$value" >/dev/null 2>&1 || \
+        xfconf-query -c xfce4-desktop -p "$property" -t "$type" -s "$value" >/dev/null 2>&1 || true
+}
+
+apply_xfdesktop_wallpaper() {
+    command -v xfconf-query >/dev/null 2>&1 || return 1
+    command -v xfdesktop >/dev/null 2>&1 || return 1
+    [ -f "$WALLPAPER" ] || return 1
+
+    set_xfdesktop_prop /backdrop/single-workspace-mode bool true
+    set_xfdesktop_prop /backdrop/single-workspace-number uint 0
+
+    for monitor in monitor0 monitorVirtual-1 monitorVirtual1 monitordefault; do
+        base="/backdrop/screen0/$monitor/workspace0"
+        set_xfdesktop_prop "$base/color-style" int 0
+        set_xfdesktop_prop "$base/image-style" int 5
+        set_xfdesktop_prop "$base/last-image" string "$WALLPAPER"
+        set_xfdesktop_prop "$base/last-single-image" string "$WALLPAPER"
+    done
+
+    xfdesktop --reload >/dev/null 2>&1 || true
+    return 0
+}
+
+if apply_xfdesktop_wallpaper; then
+    log "Applied wallpaper through xfdesktop: $WALLPAPER"
+elif command -v feh >/dev/null 2>&1 && [ -f "$WALLPAPER" ]; then
     feh --no-fehbg --bg-fill "$WALLPAPER" >/dev/null 2>&1 || true
 else
     set_solid_background
@@ -234,6 +269,7 @@ pkill -x wrapper-2.0 >/dev/null 2>&1 || true
 pkill -x tint2 >/dev/null 2>&1 || true
 pkill -x stalonetray >/dev/null 2>&1 || true
 pkill -x xcompmgr >/dev/null 2>&1 || true
+pkill -x xfdesktop >/dev/null 2>&1 || true
 
 command -v pulseaudio >/dev/null 2>&1 && pulseaudio --start >/dev/null 2>&1 || true
 
@@ -250,6 +286,10 @@ sleep 2
 configure_panel
 xfce4-panel --disable-wm-check >/dev/null 2>&1 &
 sleep 1
+if command -v xfdesktop >/dev/null 2>&1; then
+    xfdesktop --disable-wm-check >/dev/null 2>&1 &
+    sleep 1
+fi
 lxterminal >/dev/null 2>&1 &
 xfe >/dev/null 2>&1 &
 sleep 2
