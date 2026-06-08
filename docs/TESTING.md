@@ -37,14 +37,14 @@ After entering the graphical desktop, verify from a desktop terminal:
 echo "$DISPLAY"
 echo "$XDG_SESSION_TYPE"
 echo "$XDG_CURRENT_DESKTOP"
-ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|xfe|plasmashell|kwin' | grep -v grep
+ps -ef | grep -E 'lightdm|Xorg|loongnix-test-session|xfwm4|xfce4-panel|wrapper|lxterminal|xfe|plasmashell|kwin' | grep -v grep
 ```
 
 Expected:
 
 - `DISPLAY` is set, for example `:0`.
 - The session is X11, or can at least launch X11 applications.
-- A visible desktop, panel/tray area, terminal, and graphical file manager are available. With the recommended lightweight setup, expect `lightdm`, `Xorg`, `openbox`, `tint2`, `lxterminal`, and `xfe`.
+- A visible desktop, panel/tray area, terminal, and graphical file manager are available. With the recommended lightweight setup, expect `lightdm`, `Xorg`, `loongnix-test-session`, `xfwm4`, `xfce4-panel`, `wrapper-2.0`, `lxterminal`, and `xfe`.
 
 If SSH works but there is no visible X11 desktop, only command-line diagnostics are possible; Avalonia/X11 rendering, tray, and audio acceptance is not complete.
 
@@ -134,15 +134,16 @@ Package installation requires root privileges.
 
 ## Tray Checks
 
-For tray testing in the recommended Openbox lightweight environment, first check:
+For tray testing in the recommended Loongnix X11 Test Desktop, first check:
 
 ```bash
 echo "$XDG_CURRENT_DESKTOP"
 echo "$DESKTOP_SESSION"
-ps -ef | grep -E 'tint2|openbox' | grep -v grep
+ps -ef | grep -E 'xfwm4|xfce4-panel|wrapper-2.0|wrapper-1.0' | grep -v grep
+dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply / org.freedesktop.DBus.ListNames | grep -E 'StatusNotifierWatcher|StatusNotifierItem'
 ```
 
-Then test tray menu, hide-to-tray, restore-from-tray, and exit actions. Tray behavior should be manually accepted in this environment.
+`wrapper-2.0` is the Xfce panel StatusNotifier plugin, which provides the `org.kde.StatusNotifierWatcher` used by ClassIsland/Avalonia tray icons. `wrapper-1.0` is the traditional systray plugin. Then test tray menu, hide-to-tray, restore-from-tray, and exit actions. Tray behavior should be manually accepted in this environment.
 
 ## What To Record
 

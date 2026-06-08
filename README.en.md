@@ -13,7 +13,7 @@ The repository only contains open-source launcher scripts, download/checksum scr
 - User-mode networking by default, forwarding host `127.0.0.1:2222` to guest SSH port `22`.
 - DirectSound + Intel HDA audio by default for bell, TTS, and playback tests.
 - A host shared folder by default for moving Actions artifacts, local builds, and the guest one-shot setup script into the VM.
-- The recommended lightweight desktop includes LXTerminal, the tint2 tray, and the Xfe graphical file manager for manual file browsing and copying.
+- The recommended lightweight desktop is Loongnix X11 Test Desktop: the `xfwm4` compositor, Xfce panel with StatusNotifier/systray support, LXTerminal, and the Xfe graphical file manager for testing transparent windows, tray menus, and file copying.
 - virtio disk, virtio network, virtio GPU, USB tablet, and raised QEMU process priority for better TCG performance.
 - Snapshot mode and quick work-disk reset for repeated testing.
 
@@ -39,7 +39,7 @@ The repository only contains open-source launcher scripts, download/checksum scr
 | `scripts\Stop-Loongnix.ps1` | Stops QEMU processes started by this setup. |
 | `scripts\Reset-WorkDisk.ps1` | Recreates the work disk from the base image; this removes installed guest packages and test state. |
 | `scripts\Package-Release.ps1` | Packages scripts and docs for Actions/Release; it does not include QEMU, Loongnix images, work disks, test software, or logs. |
-| `shared\setup-loongnix-test-desktop.sh` | Guest-side one-shot setup script run as root inside Loongnix; installs the lightweight X11 desktop, enables SSH, configures Chinese locale, LightDM/Openbox, tint2, LXTerminal, and Xfe. |
+| `shared\setup-loongnix-test-desktop.sh` | Guest-side one-shot setup script run as root inside Loongnix; installs the lightweight X11 desktop, enables SSH, and configures Chinese locale, LightDM, Loongnix X11 Test Desktop, the `xfwm4` compositor, Xfce panel tray, LXTerminal, and Xfe. |
 
 ## Quick Start
 

@@ -222,10 +222,10 @@ shared\setup-loongnix-test-desktop.sh
 它会在 Loongnix 内完成下面这些操作：
 
 - 启用 SSH 服务。
-- 安装 X11、LightDM、Openbox、LXTerminal、tint2 托盘、Xfe 图形文件管理器、声音工具和通知支持。
+- 安装 X11、LightDM、`xfwm4` 合成窗口管理器、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、声音工具和通知支持。
 - 生成 `zh_CN.UTF-8` locale，安装中文字体，并把系统默认语言尽量切到中文。
 - 把时区设置为 `Asia/Shanghai`。
-- 配置 LightDM 默认进入 Openbox，并建立 `display-manager.service` 链接，避免重启后只停在 `tty1`。
+- 配置 LightDM 默认进入 `loongnix-test` 会话，并建立 `display-manager.service` 链接，避免重启后只停在 `tty1`。
 - 默认启用 `loongson` 自动登录，方便反复测试。
 
 如果虚拟机停在 `tty1`，先用 `root` / `Loongson20` 登录，然后挂载共享盘并运行脚本：
@@ -253,7 +253,7 @@ SET_CHINESE=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 REBOOT_AFTER=1 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 ```
 
-脚本执行完并重启后，QEMU 窗口应进入 Openbox 桌面；默认能看到 tint2 面板/托盘、LXTerminal 和 Xfe 文件管理器。如果脚本执行失败或你想调整安装内容，继续按下面的手动教程操作。
+脚本执行完并重启后，QEMU 窗口应进入 Loongnix X11 Test Desktop；默认能看到 Xfce panel 托盘、LXTerminal 和 Xfe 文件管理器。这个会话使用 `xfwm4 --compositor=on`，用于覆盖 ClassIsland 这类 Avalonia 透明窗口；托盘同时提供 StatusNotifier 和传统 systray。脚本执行失败或你想调整安装内容时，继续按下面的手动教程操作。
 
 ### 5.3 诊断桌面组件是否已安装
 
@@ -271,7 +271,7 @@ ls /usr/bin/Xorg /usr/bin/startplasma-x11 /usr/bin/kwin_x11 /usr/bin/startkde 2>
 | --- | --- | --- |
 | 有 `sddm.service`、`lightdm.service` 或其他 display manager | 图形登录器已安装 | 直接启动对应服务 |
 | 有 Xorg/KDE 程序但没有 display manager | 已有部分桌面组件 | 安装或启用显示管理器 |
-| 几乎没有输出 | mini 镜像缺少桌面环境 | 安装 LightDM + Openbox 轻量测试桌面 |
+| 几乎没有输出 | mini 镜像缺少桌面环境 | 安装 LightDM + Loongnix X11 Test Desktop 轻量测试桌面 |
 
 本项目实测的公开 Loongnix mini 镜像初始状态是：`ssh.service` 已可由 root 启用，`systemctl get-default` 为 `graphical.target`，但没有 `sddm/lightdm`，也没有 `/usr/bin/Xorg`、`startplasma-x11`、`kwin_x11` 等桌面组件。因此即使启动脚本打开了可见 QEMU 窗口，也仍然需要安装桌面环境。
 
@@ -299,7 +299,7 @@ dpkg --configure -a
 apt --fix-broken install
 ```
 
-### 5.4 手动安装 LightDM + Openbox 轻量测试桌面
+### 5.4 手动安装 LightDM + Loongnix X11 Test Desktop
 
 下面安装桌面环境的命令都需要 root 权限。如果你是通过 SSH 连接进来的 `loongson` 用户，请先在虚拟机内执行 `su -` 切到 root。先确认网络和 apt 源可用。mini 镜像可能没有 `ip` 命令，可以用 `ifconfig` 代替；安装 `iproute2` 后才会有 `ip`：
 
@@ -309,16 +309,16 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、Openbox、LXTerminal、tint2 面板/托盘、Xfe 图形文件管理器、通知支持、中文字体、locale 工具和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、窗口、声音、通知、托盘图标和图形文件浏览验收：
+推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、`xfwm4`、Xfce panel、StatusNotifier/systray 托盘插件、LXTerminal、Xfe 图形文件管理器、通知支持、中文字体、locale 工具和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、透明窗口合成、声音、通知、托盘图标和图形文件浏览验收：
 
 可以先模拟安装，确认依赖能解析：
 
 ```bash
-apt-get -s install lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin lxterminal xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 配置中文系统语言、中文字体缓存和中国时区：
@@ -335,30 +335,122 @@ fc-cache -f
 
 中文设置应用到新的登录会话后才完整生效。建议在 `loongson` 桌面终端或 SSH 会话中运行 `locale` 检查；从已有终端里切到 root 的 `su` shell 可能仍显示 `POSIX`，这不代表桌面用户语言配置失败。
 
-给 `loongson` 用户添加 Openbox 自动启动项，让登录后直接出现面板、托盘、终端和文件管理器：
+创建 `loongnix-test` 会话。它直接启动 `xfwm4 --compositor=on`，再启动 Xfce panel、LXTerminal 和 Xfe，并在会话启动时强制配置 Xfce panel 的 StatusNotifier 和 systray 插件。托盘测试依赖 `org.kde.StatusNotifierWatcher`，不要省略下面的面板配置函数：
 
 ```bash
-mkdir -p /home/loongson/.config/openbox
-cat >/home/loongson/.config/openbox/autostart <<'EOF'
+cat >/usr/local/bin/loongnix-test-session <<'EOF'
+#!/bin/sh
+USER_ID="$(id -u)"
+export LANG="${LANG:-zh_CN.UTF-8}"
+export LANGUAGE="${LANGUAGE:-zh_CN:zh}"
+export LC_MESSAGES="${LC_MESSAGES:-zh_CN.UTF-8}"
+export XDG_CURRENT_DESKTOP=XFCE
+export DESKTOP_SESSION=loongnix-test
+export XDG_SESSION_DESKTOP=loongnix-test
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && [ -S "/run/user/$USER_ID/bus" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus"
+fi
+
+set_panel_prop() {
+    property="$1"
+    type="$2"
+    value="$3"
+    xfconf-query -c xfce4-panel -p "$property" -n -t "$type" -s "$value" >/dev/null 2>&1 || \
+        xfconf-query -c xfce4-panel -p "$property" -t "$type" -s "$value" >/dev/null 2>&1 || true
+}
+
+configure_panel() {
+    command -v xfconf-query >/dev/null 2>&1 || return 0
+    xfconf-query -c xfce4-panel -p /panels -r -R >/dev/null 2>&1 || true
+    xfconf-query -c xfce4-panel -p /plugins -r -R >/dev/null 2>&1 || true
+    xfconf-query -c xfce4-panel -p /configver -r >/dev/null 2>&1 || true
+    xfconf-query -c xfce4-panel -p /panels -n -a -t int -s 1 >/dev/null 2>&1 || \
+        xfconf-query -c xfce4-panel -p /panels -a -t int -s 1 >/dev/null 2>&1 || true
+    set_panel_prop /configver int 2
+    set_panel_prop /panels/panel-1/position string 'p=10;x=0;y=0'
+    set_panel_prop /panels/panel-1/length uint 100
+    set_panel_prop /panels/panel-1/position-locked bool true
+    set_panel_prop /panels/panel-1/size uint 30
+    xfconf-query -c xfce4-panel -p /panels/panel-1/plugin-ids -n -a \
+        -t int -s 1 -t int -s 2 -t int -s 3 -t int -s 4 -t int -s 5 -t int -s 6 >/dev/null 2>&1 || \
+        xfconf-query -c xfce4-panel -p /panels/panel-1/plugin-ids -a \
+        -t int -s 1 -t int -s 2 -t int -s 3 -t int -s 4 -t int -s 5 -t int -s 6 >/dev/null 2>&1 || true
+    set_panel_prop /plugins/plugin-1 string applicationsmenu
+    set_panel_prop /plugins/plugin-2 string tasklist
+    set_panel_prop /plugins/plugin-3 string separator
+    set_panel_prop /plugins/plugin-3/expand bool true
+    set_panel_prop /plugins/plugin-3/style uint 0
+    set_panel_prop /plugins/plugin-4 string statusnotifier
+    set_panel_prop /plugins/plugin-5 string systray
+    set_panel_prop /plugins/plugin-6 string clock
+}
+
+pkill -x xfce4-panel >/dev/null 2>&1 || true
+pkill -x wrapper-1.0 >/dev/null 2>&1 || true
+pkill -x wrapper-2.0 >/dev/null 2>&1 || true
+pkill -x tint2 >/dev/null 2>&1 || true
+pkill -x stalonetray >/dev/null 2>&1 || true
+pkill -x xcompmgr >/dev/null 2>&1 || true
+
+xsetroot -solid '#d8e0e5' || true
 pulseaudio --start &
-tint2 &
+if [ -x /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd ]; then
+    /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd &
+fi
+xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool -s true >/dev/null 2>&1 || true
+xfwm4 --compositor=on &
+wm_pid=$!
+sleep 2
+configure_panel
+xfce4-panel --disable-wm-check &
+sleep 1
 lxterminal &
 xfe &
+wait "$wm_pid"
 EOF
-chown -R loongson:loongson /home/loongson/.config
+chmod 0755 /usr/local/bin/loongnix-test-session
+
+cat >/usr/share/xsessions/loongnix-test.desktop <<'EOF'
+[Desktop Entry]
+Name=Loongnix X11 Test Desktop
+Comment=Lightweight X11 session with compositor, panel, tray, notifications, terminal, and file manager
+Exec=/usr/local/bin/loongnix-test-session
+Type=Application
+DesktopNames=XFCE
+EOF
+
 cat >/home/loongson/.dmrc <<'EOF'
 [Desktop]
-Session=openbox
+Session=loongnix-test
 EOF
 chown loongson:loongson /home/loongson/.dmrc
 mkdir -p /etc/xdg/lightdm/lightdm.conf.d
-cat >/etc/xdg/lightdm/lightdm.conf.d/50-openbox-test.conf <<'EOF'
+cat >/etc/xdg/lightdm/lightdm.conf.d/50-loongnix-test.conf <<'EOF'
 [Seat:*]
-user-session=openbox
+user-session=loongnix-test
 EOF
 ```
 
-Loongnix 源里的 `/usr/share/xsessions/openbox.desktop` 使用 `Exec=/usr/bin/openbox-session`，会读取上面的 `~/.config/openbox/autostart`。`.dmrc` 和 `50-openbox-test.conf` 用来把默认登录会话固定为 Openbox，避免 LightDM 进入 `lightdm-xsession` 后再启动 Plasma。实测这版 LightDM 会读取 `/etc/xdg/lightdm/lightdm.conf.d`，不要把自定义配置写到 `/etc/lightdm/lightdm.conf.d`。
+实测这版 LightDM 会读取 `/etc/xdg/lightdm/lightdm.conf.d`，不要把自定义配置写到 `/etc/lightdm/lightdm.conf.d`。如果系统里还残留旧的 Openbox 自动登录片段，建议禁用，避免它覆盖 `loongnix-test`：
+
+```bash
+for f in /etc/xdg/lightdm/lightdm.conf.d/*openbox*.conf; do
+    [ -f "$f" ] && mv "$f" "$f.disabled"
+done
+```
+
+为避免 KDE 的通知服务占用 `org.freedesktop.Notifications` 后在轻量会话中退出，推荐把通知服务固定到 `xfce4-notifyd`：
+
+```bash
+if [ -f /usr/share/dbus-1/services/org.kde.plasma.Notifications.service ]; then
+    mv /usr/share/dbus-1/services/org.kde.plasma.Notifications.service /usr/share/dbus-1/services/org.kde.plasma.Notifications.service.disabled
+fi
+cat >/usr/share/dbus-1/services/org.freedesktop.Notifications.service <<'EOF'
+[D-BUS Service]
+Name=org.freedesktop.Notifications
+Exec=/usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd
+EOF
+```
 
 如果之前装过 `sddm`，建议改用 LightDM，避免两个显示管理器抢默认入口：
 
@@ -387,15 +479,15 @@ systemctl status lightdm --no-pager
 systemctl restart lightdm
 ```
 
-为了反复测试更快，也可以在这个测试虚拟机里启用 `loongson` 自动登录 Openbox：
+为了反复测试更快，也可以在这个测试虚拟机里启用 `loongson` 自动登录 `loongnix-test`：
 
 ```bash
-cat >/etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf <<'EOF'
+cat >/etc/xdg/lightdm/lightdm.conf.d/90-loongnix-test-session.conf <<'EOF'
 [Seat:*]
 autologin-user=loongson
 autologin-user-timeout=0
-user-session=openbox
-autologin-session=openbox
+user-session=loongnix-test
+autologin-session=loongnix-test
 EOF
 systemctl restart lightdm
 ```
@@ -403,7 +495,7 @@ systemctl restart lightdm
 自动登录只建议用于本地测试虚拟机；如果要保留登录界面，删除这个文件后重启 LightDM：
 
 ```bash
-rm -f /etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf
+rm -f /etc/xdg/lightdm/lightdm.conf.d/90-loongnix-test-session.conf
 systemctl restart lightdm
 ```
 
@@ -413,7 +505,7 @@ systemctl restart lightdm
 systemctl reboot
 ```
 
-普通 `loongson` 用户的 PATH 里通常没有 `/usr/sbin`，所以直接敲 `reboot` 可能提示命令不存在；在 root shell 中优先使用 `systemctl reboot`。重启后 QEMU 窗口应进入 LightDM 图形登录器或自动进入 Openbox。登录后应出现 tint2 面板/托盘、LXTerminal 和 Xfe 文件管理器。
+普通 `loongson` 用户的 PATH 里通常没有 `/usr/sbin`，所以直接敲 `reboot` 可能提示命令不存在；在 root shell 中优先使用 `systemctl reboot`。重启后 QEMU 窗口应进入 LightDM 图形登录器或自动进入 Loongnix X11 Test Desktop。登录后应出现 Xfce panel、托盘区域、LXTerminal 和 Xfe 文件管理器。
 
 实测启动成功时，`systemctl status lightdm --no-pager` 会显示 `active (running)`，进程列表里应能看到 `/usr/sbin/lightdm` 和 `/usr/lib/xorg/Xorg :0 ... vt7`。
 
@@ -421,21 +513,22 @@ systemctl reboot
 
 ```bash
 apt-cache search lightdm
-apt-cache search openbox
-apt-cache search tint2
+apt-cache search xfwm4
+apt-cache search xfce4-panel
+apt-cache search statusnotifier
 apt-cache search xfe
 ```
 
 如果下载过程中遇到单个包临时失败，可以先重试：
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 实测当前 Loongnix 源中，`pcmanfm` 没有候选版本，`xfce4` 元包会因为 `xfce4-settings` 依赖的主题包不可安装而失败，`lxde` 元包会引用没有候选版本的 `lxpanel/pcmanfm`，`caja` 会拉入较重的 MATE 依赖。因此默认使用 Xfe；如果要复查其它文件管理器可用性：
 
 ```bash
-apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
+apt-cache policy lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin lxde lxpanel lxterminal pcmanfm
 apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 

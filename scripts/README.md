@@ -10,7 +10,7 @@
 | `Stop-Loongnix.ps1` | 停止匹配的 QEMU 进程。 |
 | `Reset-WorkDisk.ps1` | 从干净基础镜像重建可写工作盘，会清空虚拟机内已安装软件和测试状态。 |
 | `Package-Release.ps1` | 打包脚本和文档用于 Actions 或 Release，不包含 QEMU、镜像、工作盘、测试软件或日志。 |
-| `..\shared\setup-loongnix-test-desktop.sh` | 在 Loongnix 虚拟机内以 root 运行；一键配置 SSH、中文 locale、LightDM/Openbox、tint2、LXTerminal 和 Xfe。 |
+| `..\shared\setup-loongnix-test-desktop.sh` | 在 Loongnix 虚拟机内以 root 运行；一键配置 SSH、中文 locale、LightDM、Loongnix X11 Test Desktop、`xfwm4` 合成器、Xfce panel 托盘、LXTerminal 和 Xfe。 |
 
 如果 QEMU 不在 `tools\qemu`、`C:\Program Files\qemu`、`C:\Program Files (x86)\qemu` 或系统 `PATH` 中，启动时必须传入：
 
@@ -34,7 +34,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 | `Stop-Loongnix.ps1` | Stop matching QEMU processes. |
 | `Reset-WorkDisk.ps1` | Recreate the writable work disk from the clean base image; this clears installed guest packages and test state. |
 | `Package-Release.ps1` | Package scripts and docs for Actions or Release; QEMU, images, work disks, test software, and logs are excluded. |
-| `..\shared\setup-loongnix-test-desktop.sh` | Run as root inside the Loongnix guest; configures SSH, Chinese locale, LightDM/Openbox, tint2, LXTerminal, and Xfe in one pass. |
+| `..\shared\setup-loongnix-test-desktop.sh` | Run as root inside the Loongnix guest; configures SSH, Chinese locale, LightDM, Loongnix X11 Test Desktop, the `xfwm4` compositor, Xfce panel tray, LXTerminal, and Xfe in one pass. |
 
 If QEMU is not in `tools\qemu`, `C:\Program Files\qemu`, `C:\Program Files (x86)\qemu`, or system `PATH`, pass:
 

@@ -222,10 +222,10 @@ shared\setup-loongnix-test-desktop.sh
 Inside Loongnix, it performs these actions:
 
 - Enables SSH.
-- Installs X11, LightDM, Openbox, LXTerminal, the tint2 tray, the Xfe graphical file manager, audio tools, and notification support.
+- Installs X11, LightDM, the `xfwm4` compositing window manager, Xfce panel, StatusNotifier/systray tray plugins, LXTerminal, the Xfe graphical file manager, audio tools, and notification support.
 - Generates the `zh_CN.UTF-8` locale, installs Chinese fonts, and sets the system language to Chinese where possible.
 - Sets the time zone to `Asia/Shanghai`.
-- Configures LightDM to use Openbox by default and creates the `display-manager.service` link so reboot does not stop at `tty1`.
+- Configures LightDM to use the `loongnix-test` session by default and creates the `display-manager.service` link so reboot does not stop at `tty1`.
 - Enables `loongson` autologin by default for faster repeated testing.
 
 If the VM stops at `tty1`, log in as `root` / `Loongson20`, mount the shared disk, and run:
@@ -253,7 +253,7 @@ SET_CHINESE=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 REBOOT_AFTER=1 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
 ```
 
-After the script completes and the VM reboots, the QEMU window should enter Openbox. By default, the tint2 panel/tray, LXTerminal, and Xfe file manager should be visible. If the script fails or you want to customize the setup, continue with the manual path below.
+After the script completes and the VM reboots, the QEMU window should enter Loongnix X11 Test Desktop. By default, the Xfce panel tray, LXTerminal, and Xfe file manager should be visible. This session uses `xfwm4 --compositor=on` to cover Avalonia transparent windows, and the tray provides both StatusNotifier and traditional systray support. If the script fails or you want to customize the setup, continue with the manual path below.
 
 ### 5.3 Check Whether Desktop Components Are Installed
 
@@ -271,7 +271,7 @@ How to read the result:
 | --- | --- | --- |
 | `sddm.service`, `lightdm.service`, or another display manager appears | A graphical login manager is installed | Start that service |
 | Xorg/KDE programs exist but no display manager appears | Some desktop components are installed | Install or enable a display manager |
-| Almost no output | The mini image lacks a desktop environment | Install lightweight LightDM + Openbox |
+| Almost no output | The mini image lacks a desktop environment | Install lightweight LightDM + Loongnix X11 Test Desktop |
 
 In the public Loongnix mini image tested for this project, `ssh.service` can be enabled by root and `systemctl get-default` reports `graphical.target`, but there is no `sddm/lightdm` and no `/usr/bin/Xorg`, `startplasma-x11`, or `kwin_x11`. So the launcher opening a visible QEMU window does not mean the guest already has a desktop environment.
 
@@ -299,7 +299,7 @@ dpkg --configure -a
 apt --fix-broken install
 ```
 
-### 5.4 Manually Install Lightweight LightDM + Openbox Test Desktop
+### 5.4 Manually Install Lightweight LightDM + Loongnix X11 Test Desktop
 
 All desktop installation commands below require root privileges. If you connected through SSH as the `loongson` user, run `su -` inside the guest first. Then check networking and apt repositories. The mini image may not include the `ip` command; use `ifconfig` until `iproute2` is installed:
 
@@ -309,16 +309,16 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-Install X11, D-Bus, audio tools, OpenSSH, LightDM, Openbox, LXTerminal, the tint2 panel/tray, the Xfe graphical file manager, notification support, Chinese fonts, locale tools, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, windows, audio, notifications, tray icon acceptance, and graphical file browsing:
+Install X11, D-Bus, audio tools, OpenSSH, LightDM, `xfwm4`, Xfce panel, StatusNotifier/systray tray plugins, LXTerminal, the Xfe graphical file manager, notification support, Chinese fonts, locale tools, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, transparent window compositing, windows, audio, notifications, tray icon acceptance, and graphical file browsing:
 
 You can simulate the install first to confirm that dependencies resolve:
 
 ```bash
-apt-get -s install lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt-get -s install lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin lxterminal xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 Configure Chinese locale, Chinese font cache, and the China time zone:
@@ -335,30 +335,122 @@ fc-cache -f
 
 The Chinese language settings apply fully to new login sessions. Check with `locale` from the `loongson` desktop terminal or SSH session. A root shell entered from an already-open terminal with `su` may still show `POSIX`; that does not mean the desktop user's locale failed.
 
-Add an Openbox autostart file for the `loongson` user so login opens a panel, tray, terminal, and file manager immediately:
+Create the `loongnix-test` session. It starts `xfwm4 --compositor=on` directly, then starts Xfce panel, LXTerminal, and Xfe, and forces the Xfce panel StatusNotifier and systray plugins during session startup. Tray testing depends on `org.kde.StatusNotifierWatcher`; do not omit the panel configuration function below:
 
 ```bash
-mkdir -p /home/loongson/.config/openbox
-cat >/home/loongson/.config/openbox/autostart <<'EOF'
+cat >/usr/local/bin/loongnix-test-session <<'EOF'
+#!/bin/sh
+USER_ID="$(id -u)"
+export LANG="${LANG:-zh_CN.UTF-8}"
+export LANGUAGE="${LANGUAGE:-zh_CN:zh}"
+export LC_MESSAGES="${LC_MESSAGES:-zh_CN.UTF-8}"
+export XDG_CURRENT_DESKTOP=XFCE
+export DESKTOP_SESSION=loongnix-test
+export XDG_SESSION_DESKTOP=loongnix-test
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && [ -S "/run/user/$USER_ID/bus" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus"
+fi
+
+set_panel_prop() {
+    property="$1"
+    type="$2"
+    value="$3"
+    xfconf-query -c xfce4-panel -p "$property" -n -t "$type" -s "$value" >/dev/null 2>&1 || \
+        xfconf-query -c xfce4-panel -p "$property" -t "$type" -s "$value" >/dev/null 2>&1 || true
+}
+
+configure_panel() {
+    command -v xfconf-query >/dev/null 2>&1 || return 0
+    xfconf-query -c xfce4-panel -p /panels -r -R >/dev/null 2>&1 || true
+    xfconf-query -c xfce4-panel -p /plugins -r -R >/dev/null 2>&1 || true
+    xfconf-query -c xfce4-panel -p /configver -r >/dev/null 2>&1 || true
+    xfconf-query -c xfce4-panel -p /panels -n -a -t int -s 1 >/dev/null 2>&1 || \
+        xfconf-query -c xfce4-panel -p /panels -a -t int -s 1 >/dev/null 2>&1 || true
+    set_panel_prop /configver int 2
+    set_panel_prop /panels/panel-1/position string 'p=10;x=0;y=0'
+    set_panel_prop /panels/panel-1/length uint 100
+    set_panel_prop /panels/panel-1/position-locked bool true
+    set_panel_prop /panels/panel-1/size uint 30
+    xfconf-query -c xfce4-panel -p /panels/panel-1/plugin-ids -n -a \
+        -t int -s 1 -t int -s 2 -t int -s 3 -t int -s 4 -t int -s 5 -t int -s 6 >/dev/null 2>&1 || \
+        xfconf-query -c xfce4-panel -p /panels/panel-1/plugin-ids -a \
+        -t int -s 1 -t int -s 2 -t int -s 3 -t int -s 4 -t int -s 5 -t int -s 6 >/dev/null 2>&1 || true
+    set_panel_prop /plugins/plugin-1 string applicationsmenu
+    set_panel_prop /plugins/plugin-2 string tasklist
+    set_panel_prop /plugins/plugin-3 string separator
+    set_panel_prop /plugins/plugin-3/expand bool true
+    set_panel_prop /plugins/plugin-3/style uint 0
+    set_panel_prop /plugins/plugin-4 string statusnotifier
+    set_panel_prop /plugins/plugin-5 string systray
+    set_panel_prop /plugins/plugin-6 string clock
+}
+
+pkill -x xfce4-panel >/dev/null 2>&1 || true
+pkill -x wrapper-1.0 >/dev/null 2>&1 || true
+pkill -x wrapper-2.0 >/dev/null 2>&1 || true
+pkill -x tint2 >/dev/null 2>&1 || true
+pkill -x stalonetray >/dev/null 2>&1 || true
+pkill -x xcompmgr >/dev/null 2>&1 || true
+
+xsetroot -solid '#d8e0e5' || true
 pulseaudio --start &
-tint2 &
+if [ -x /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd ]; then
+    /usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd &
+fi
+xfconf-query -c xfwm4 -p /general/use_compositing -n -t bool -s true >/dev/null 2>&1 || true
+xfwm4 --compositor=on &
+wm_pid=$!
+sleep 2
+configure_panel
+xfce4-panel --disable-wm-check &
+sleep 1
 lxterminal &
 xfe &
+wait "$wm_pid"
 EOF
-chown -R loongson:loongson /home/loongson/.config
+chmod 0755 /usr/local/bin/loongnix-test-session
+
+cat >/usr/share/xsessions/loongnix-test.desktop <<'EOF'
+[Desktop Entry]
+Name=Loongnix X11 Test Desktop
+Comment=Lightweight X11 session with compositor, panel, tray, notifications, terminal, and file manager
+Exec=/usr/local/bin/loongnix-test-session
+Type=Application
+DesktopNames=XFCE
+EOF
+
 cat >/home/loongson/.dmrc <<'EOF'
 [Desktop]
-Session=openbox
+Session=loongnix-test
 EOF
 chown loongson:loongson /home/loongson/.dmrc
 mkdir -p /etc/xdg/lightdm/lightdm.conf.d
-cat >/etc/xdg/lightdm/lightdm.conf.d/50-openbox-test.conf <<'EOF'
+cat >/etc/xdg/lightdm/lightdm.conf.d/50-loongnix-test.conf <<'EOF'
 [Seat:*]
-user-session=openbox
+user-session=loongnix-test
 EOF
 ```
 
-In the Loongnix repository, `/usr/share/xsessions/openbox.desktop` runs `Exec=/usr/bin/openbox-session`, which reads the `~/.config/openbox/autostart` file above. `.dmrc` and `50-openbox-test.conf` pin the default login session to Openbox so LightDM does not enter `lightdm-xsession` and then start Plasma. This LightDM build reads `/etc/xdg/lightdm/lightdm.conf.d`; do not place the custom snippets under `/etc/lightdm/lightdm.conf.d`.
+This LightDM build reads `/etc/xdg/lightdm/lightdm.conf.d`; do not place custom snippets under `/etc/lightdm/lightdm.conf.d`. If older Openbox autologin snippets remain, disable them so they do not override `loongnix-test`:
+
+```bash
+for f in /etc/xdg/lightdm/lightdm.conf.d/*openbox*.conf; do
+    [ -f "$f" ] && mv "$f" "$f.disabled"
+done
+```
+
+To prevent KDE's notification service shim from claiming `org.freedesktop.Notifications` and then exiting in the lightweight session, pin notifications to `xfce4-notifyd`:
+
+```bash
+if [ -f /usr/share/dbus-1/services/org.kde.plasma.Notifications.service ]; then
+    mv /usr/share/dbus-1/services/org.kde.plasma.Notifications.service /usr/share/dbus-1/services/org.kde.plasma.Notifications.service.disabled
+fi
+cat >/usr/share/dbus-1/services/org.freedesktop.Notifications.service <<'EOF'
+[D-BUS Service]
+Name=org.freedesktop.Notifications
+Exec=/usr/lib/loongarch64-linux-gnu/xfce4/notifyd/xfce4-notifyd
+EOF
+```
 
 If `sddm` was installed earlier, prefer LightDM for this lightweight setup so the display managers do not compete for the default entry point:
 
@@ -387,15 +479,15 @@ If you had already logged into Plasma or another session before applying this co
 systemctl restart lightdm
 ```
 
-For faster repeated testing, you can also enable automatic login to Openbox for `loongson` in this local test VM:
+For faster repeated testing, you can also enable automatic login to `loongnix-test` for `loongson` in this local test VM:
 
 ```bash
-cat >/etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf <<'EOF'
+cat >/etc/xdg/lightdm/lightdm.conf.d/90-loongnix-test-session.conf <<'EOF'
 [Seat:*]
 autologin-user=loongson
 autologin-user-timeout=0
-user-session=openbox
-autologin-session=openbox
+user-session=loongnix-test
+autologin-session=loongnix-test
 EOF
 systemctl restart lightdm
 ```
@@ -403,7 +495,7 @@ systemctl restart lightdm
 Autologin is recommended only for a local test VM. To keep the login screen, remove the file and restart LightDM:
 
 ```bash
-rm -f /etc/xdg/lightdm/lightdm.conf.d/60-autologin-openbox.conf
+rm -f /etc/xdg/lightdm/lightdm.conf.d/90-loongnix-test-session.conf
 systemctl restart lightdm
 ```
 
@@ -413,7 +505,7 @@ After confirming that the QEMU window shows a graphical login manager, reboot on
 systemctl reboot
 ```
 
-The normal `loongson` user's PATH usually does not include `/usr/sbin`, so typing `reboot` directly may report command not found. From a root shell, prefer `systemctl reboot`. After reboot, the QEMU window should enter the LightDM graphical login manager or autologin to Openbox. After login, the tint2 panel/tray, LXTerminal, and Xfe file manager should appear.
+The normal `loongson` user's PATH usually does not include `/usr/sbin`, so typing `reboot` directly may report command not found. From a root shell, prefer `systemctl reboot`. After reboot, the QEMU window should enter the LightDM graphical login manager or autologin to Loongnix X11 Test Desktop. After login, the Xfce panel, tray area, LXTerminal, and Xfe file manager should appear.
 
 When startup succeeds, `systemctl status lightdm --no-pager` should show `active (running)`, and the process list should include `/usr/sbin/lightdm` plus `/usr/lib/xorg/Xorg :0 ... vt7`.
 
@@ -421,21 +513,22 @@ If package names differ in your repository, search first:
 
 ```bash
 apt-cache search lightdm
-apt-cache search openbox
-apt-cache search tint2
+apt-cache search xfwm4
+apt-cache search xfce4-panel
+apt-cache search statusnotifier
 apt-cache search xfe
 ```
 
 If one package download fails temporarily, retry with:
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin xfce4-indicator-plugin libayatana-appindicator3-1 libappindicator3-1 ayatana-indicator-application lxterminal xfe xfce4-notifyd libnotify-bin x11-xserver-utils iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 In the tested Loongnix repositories, `pcmanfm` has no candidate version, the `xfce4` meta package fails because theme packages required by `xfce4-settings` are not installable, the `lxde` meta package references `lxpanel/pcmanfm` packages with no candidate version, and `caja` pulls a heavier MATE dependency set. The default path therefore uses Xfe. To re-check other file managers:
 
 ```bash
-apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
+apt-cache policy lightdm xfwm4 xfce4-panel xfce4-statusnotifier-plugin lxde lxpanel lxterminal pcmanfm
 apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 

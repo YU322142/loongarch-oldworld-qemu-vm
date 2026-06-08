@@ -13,7 +13,7 @@ English documentation: [README.en.md](README.en.md)
 - 默认启用用户态网络，宿主机 `127.0.0.1:2222` 转发到虚拟机 SSH `22`。
 - 默认启用 DirectSound + Intel HDA 声卡，适合测试铃声、TTS、音频播放。
 - 默认启用宿主机共享目录，方便把 Actions artifact、本地包和 guest 一键配置脚本放入虚拟机。
-- 推荐轻量桌面中包含 LXTerminal、tint2 托盘和 Xfe 图形文件管理器，方便人工测试时浏览和复制文件。
+- 推荐轻量桌面为 Loongnix X11 Test Desktop：`xfwm4` 合成器、Xfce panel 的 StatusNotifier/systray 托盘、LXTerminal 和 Xfe 图形文件管理器，方便人工测试透明窗口、托盘菜单和文件复制。
 - 使用 virtio 磁盘、virtio 网络、virtio GPU、USB tablet，并调高 QEMU 进程优先级，尽量提高 TCG 模拟效率。
 - 支持快照模式和快速重置工作盘，方便反复测试。
 
@@ -39,7 +39,7 @@ English documentation: [README.en.md](README.en.md)
 | `scripts\Stop-Loongnix.ps1` | 停止本方案启动的 QEMU 进程。 |
 | `scripts\Reset-WorkDisk.ps1` | 从基础镜像重建工作盘，会清空虚拟机内已安装的软件和测试状态。 |
 | `scripts\Package-Release.ps1` | 打包脚本和文档用于 Actions/Release；不会打包 QEMU、Loongnix 镜像、工作盘、测试软件或日志。 |
-| `shared\setup-loongnix-test-desktop.sh` | 在 Loongnix guest 内以 root 运行的一键配置脚本；安装轻量 X11 桌面、启用 SSH、配置中文 locale、LightDM/Openbox、tint2、LXTerminal 和 Xfe。 |
+| `shared\setup-loongnix-test-desktop.sh` | 在 Loongnix guest 内以 root 运行的一键配置脚本；安装轻量 X11 桌面、启用 SSH、配置中文 locale、LightDM、Loongnix X11 Test Desktop、`xfwm4` 合成器、Xfce panel 托盘、LXTerminal 和 Xfe。 |
 
 ## 快速开始
 

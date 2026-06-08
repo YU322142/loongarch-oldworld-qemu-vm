@@ -37,14 +37,14 @@ ping -c 3 github.com
 echo "$DISPLAY"
 echo "$XDG_SESSION_TYPE"
 echo "$XDG_CURRENT_DESKTOP"
-ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|xfe|plasmashell|kwin' | grep -v grep
+ps -ef | grep -E 'lightdm|Xorg|loongnix-test-session|xfwm4|xfce4-panel|wrapper|lxterminal|xfe|plasmashell|kwin' | grep -v grep
 ```
 
 期望：
 
 - `DISPLAY` 有值，例如 `:0`。
 - 会话类型是 X11，或至少能启动 X11 应用。
-- 有可见桌面、面板/托盘区域、终端和图形文件管理器。按推荐轻量方案安装时，通常能看到 `lightdm`、`Xorg`、`openbox`、`tint2`、`lxterminal` 和 `xfe`。
+- 有可见桌面、面板/托盘区域、终端和图形文件管理器。按推荐轻量方案安装时，通常能看到 `lightdm`、`Xorg`、`loongnix-test-session`、`xfwm4`、`xfce4-panel`、`wrapper-2.0`、`lxterminal` 和 `xfe`。
 
 只有 SSH 能连接、但没有可见 X11 桌面时，只能做命令行诊断；不能算完成 Avalonia/X11 渲染、托盘、声音验收。
 
@@ -134,15 +134,16 @@ ffplay /path/to/test.wav
 
 ## 托盘检查
 
-在推荐的 Openbox 轻量环境中测试托盘时，建议确认：
+在推荐的 Loongnix X11 Test Desktop 中测试托盘时，建议确认：
 
 ```bash
 echo "$XDG_CURRENT_DESKTOP"
 echo "$DESKTOP_SESSION"
-ps -ef | grep -E 'tint2|openbox' | grep -v grep
+ps -ef | grep -E 'xfwm4|xfce4-panel|wrapper-2.0|wrapper-1.0' | grep -v grep
+dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply / org.freedesktop.DBus.ListNames | grep -E 'StatusNotifierWatcher|StatusNotifierItem'
 ```
 
-然后在应用内执行托盘菜单、隐藏到托盘、从托盘恢复、退出等操作。托盘图标属于本环境必须人工验收的项目。
+`wrapper-2.0` 加载的是 Xfce panel 的 StatusNotifier 插件，负责 ClassIsland/Avalonia 这类应用常用的 `org.kde.StatusNotifierWatcher`；`wrapper-1.0` 是传统 systray 插件。然后在应用内执行托盘菜单、隐藏到托盘、从托盘恢复、退出等操作。托盘图标属于本环境必须人工验收的项目。
 
 ## 记录问题
 
