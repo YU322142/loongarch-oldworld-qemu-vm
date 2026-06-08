@@ -40,6 +40,20 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
 ```
 
+也可以把便携 QEMU 解压或复制到：
+
+```text
+tools\qemu\qemu-system-loongarch64.exe
+```
+
+本仓库和 Release 不包含 QEMU 二进制。如果没有安装 QEMU、没有把 QEMU 放到 `tools\qemu`，也没有传 `-QemuDir`，启动脚本会报：
+
+```text
+qemu-system-loongarch64.exe was not found
+```
+
+这不是 Loongnix 镜像问题，而是 Windows 主机上还没有给脚本提供 QEMU 路径。
+
 ## 3. 下载系统镜像并生成工作盘
 
 运行：
@@ -58,17 +72,55 @@ images\loongnix-abi1-work.qcow2
 
 ## 4. 启动可见 QEMU 虚拟机窗口
 
-双击：
+如果 QEMU 已经安装在脚本能找到的位置，可以双击：
 
 ```bat
 Launch-Loongnix-Desktop.cmd
 ```
 
-或运行：
+`Launch-Loongnix-Desktop.cmd` 是 CMD 包装入口，会把后面的参数转交给 PowerShell 脚本。QEMU 不在默认位置时，用下面的方式启动：
 
 ```powershell
-.\scripts\Start-Loongnix-Desktop.ps1
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu
 ```
+
+直接运行 `.ps1` 时，Windows 可能因执行策略拒绝脚本：
+
+```text
+因为在此系统上禁止运行脚本
+```
+
+这种情况下，任选一种方式：
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
+```
+
+或不改变当前窗口策略，直接用：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
+```
+
+如果要复用其它目录中的工作盘和共享目录：
+
+```powershell
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu -DiskPath D:\Path\To\loongnix-abi1-work.qcow2 -SharePath D:\Path\To\shared
+```
+
+常用参数：
+
+| 参数 | 作用 |
+| --- | --- |
+| `-QemuDir` | 指定包含 `qemu-system-loongarch64.exe` 的 QEMU 目录。 |
+| `-DiskPath` | 指定要启动的 qcow2 工作盘。 |
+| `-SharePath` | 指定暴露给虚拟机的宿主机共享目录。 |
+| `-SshPort` | 指定宿主机 SSH 转发端口，默认 `2222`。 |
+| `-Cores` / `-MemoryMB` | 调整虚拟机 vCPU 数和内存。 |
+| `-Snapshot` | 临时运行，退出后丢弃磁盘改动。 |
+| `-NoHostShare` | 禁用宿主机共享盘。 |
+| `-NoAudio` | 禁用虚拟声卡。 |
 
 默认会开启：
 
@@ -109,6 +161,18 @@ systemctl enable --now ssh
 ```
 
 注意：`root` 已经是管理员账号，在 root shell 里不需要 `sudo`；部分镜像默认禁止 root 通过 SSH 密码登录，请用 `loongson` 账号连接。
+
+## 4.1 脚本作用速查
+
+| 脚本 | 作用 |
+| --- | --- |
+| `Launch-Loongnix-Desktop.cmd` | CMD 启动入口；用 `-ExecutionPolicy Bypass` 调用 `scripts\Start-Loongnix-Desktop.ps1`，并转发参数。 |
+| `scripts\Start-Loongnix-Desktop.ps1` | 启动可见 QEMU 窗口，配置磁盘、UEFI、网络、声音、SSH 转发和共享盘。 |
+| `scripts\Install-Qemu-Windows.ps1` | 用 winget 安装 Windows QEMU。 |
+| `scripts\Download-LoongnixImage.ps1` | 下载/校验 Loongnix 镜像，并创建 `images\loongnix-abi1-work.qcow2`。 |
+| `scripts\Stop-Loongnix.ps1` | 停止匹配的 QEMU 进程。 |
+| `scripts\Reset-WorkDisk.ps1` | 重建工作盘，会清空虚拟机内测试状态。 |
+| `scripts\Package-Release.ps1` | 打包脚本和文档用于 Release，不包含 QEMU、镜像、工作盘、测试软件或日志。 |
 
 ## 5. 首次启动停在 tty1 时启用 SSH 并准备桌面环境
 
@@ -201,16 +265,16 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、Openbox、LXTerminal、tint2 面板/托盘、通知服务和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、窗口、声音、通知和托盘图标验收：
+推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、Openbox、LXTerminal、tint2 面板/托盘、Xfe 图形文件管理器、通知服务和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、窗口、声音、通知、托盘图标和图形文件浏览验收：
 
 可以先模拟安装，确认依赖能解析：
 
 ```bash
-apt-get -s install lightdm openbox obconf lxterminal tint2 notification-daemon
+apt-get -s install lightdm openbox obconf lxterminal tint2 xfe notification-daemon
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
 ```
 
 给 `loongson` 用户添加 Openbox 自动启动项，让登录后直接出现面板、托盘和终端：
@@ -222,6 +286,7 @@ pulseaudio --start
 notification-daemon &
 tint2 &
 lxterminal &
+xfe &
 EOF
 chown -R loongson:loongson /home/loongson/.config
 cat >/home/loongson/.dmrc <<'EOF'
@@ -285,10 +350,10 @@ systemctl restart lightdm
 确认 QEMU 窗口出现图形登录器后，可以重启验证持久化：
 
 ```bash
-reboot
+systemctl reboot
 ```
 
-重启后 QEMU 窗口应进入 LightDM 图形登录器。使用 `loongson` / `Loongson20` 登录 Openbox 会话；登录后应出现 tint2 面板/托盘和 LXTerminal。
+普通 `loongson` 用户的 PATH 里通常没有 `/usr/sbin`，所以直接敲 `reboot` 可能提示命令不存在；在 root shell 中优先使用 `systemctl reboot`。重启后 QEMU 窗口应进入 LightDM 图形登录器。使用 `loongson` / `Loongson20` 登录 Openbox 会话；登录后应出现 tint2 面板/托盘、LXTerminal 和 Xfe 文件管理器。
 
 实测启动成功时，`systemctl status lightdm --no-pager` 会显示 `active (running)`，进程列表里应能看到 `/usr/sbin/lightdm` 和 `/usr/lib/xorg/Xorg :0 ... vt7`。
 
@@ -298,19 +363,20 @@ reboot
 apt-cache search lightdm
 apt-cache search openbox
 apt-cache search tint2
+apt-cache search xfe
 ```
 
 如果下载过程中遇到单个包临时失败，可以先重试：
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
 ```
 
-实测当前 Loongnix 源中，`xfce4` 元包会因为 `xfce4-settings` 依赖的主题包不可安装而失败；`lxde` 元包会引用没有候选版本的 `lxpanel/pcmanfm`。因此不要把 Xfce/LXDE 元包作为默认安装路径。需要复查时可用：
+实测当前 Loongnix 源中，`pcmanfm` 没有候选版本，`xfce4` 元包会因为 `xfce4-settings` 依赖的主题包不可安装而失败，`lxde` 元包会引用没有候选版本的 `lxpanel/pcmanfm`，`caja` 会拉入较重的 MATE 依赖。因此默认使用 Xfe；如果要复查其它文件管理器可用性：
 
 ```bash
 apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
-apt-cache policy xfce4-session xfce4-settings xfwm4 xfdesktop4
+apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 
 ### 5.4 可选：安装 KDE/Plasma 完整桌面
@@ -322,7 +388,7 @@ apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio sddm plasm
 systemctl disable lightdm || true
 systemctl enable sddm
 systemctl set-default graphical.target
-reboot
+systemctl reboot
 ```
 
 实测 Loongnix 源中这些 KDE 包存在；但一次完整 KDE 安装下载量接近 500 MB，网络不稳定时更容易中断。

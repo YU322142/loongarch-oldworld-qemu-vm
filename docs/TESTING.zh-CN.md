@@ -37,14 +37,14 @@ ping -c 3 github.com
 echo "$DISPLAY"
 echo "$XDG_SESSION_TYPE"
 echo "$XDG_CURRENT_DESKTOP"
-ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|plasmashell|kwin' | grep -v grep
+ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|xfe|plasmashell|kwin' | grep -v grep
 ```
 
 期望：
 
 - `DISPLAY` 有值，例如 `:0`。
 - 会话类型是 X11，或至少能启动 X11 应用。
-- 有可见桌面、面板/托盘区域和终端。按推荐轻量方案安装时，通常能看到 `lightdm`、`Xorg`、`openbox`、`tint2` 和 `lxterminal`。
+- 有可见桌面、面板/托盘区域、终端和图形文件管理器。按推荐轻量方案安装时，通常能看到 `lightdm`、`Xorg`、`openbox`、`tint2`、`lxterminal` 和 `xfe`。
 
 只有 SSH 能连接、但没有可见 X11 桌面时，只能做命令行诊断；不能算完成 Avalonia/X11 渲染、托盘、声音验收。
 
@@ -111,6 +111,7 @@ cd ~/testapp
 - 音频功能可听见声音，包括铃声、TTS 或测试播放按钮。
 - 网络功能可访问远端服务。
 - 应用重启、关闭再打开后仍正常。
+- 能用 Xfe 图形文件管理器浏览本地测试目录和挂载后的共享盘目录。
 - 日志中没有原生库加载失败、`GLIBC` 版本不匹配、SkiaSharp/HarfBuzzSharp 缺失等错误。
 
 ## 声音检查

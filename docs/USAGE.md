@@ -40,6 +40,20 @@ If QEMU is somewhere else:
 .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
 ```
 
+You may also unpack or copy a portable QEMU build to:
+
+```text
+tools\qemu\qemu-system-loongarch64.exe
+```
+
+This repository and Release do not include QEMU binaries. If QEMU is not installed, not copied to `tools\qemu`, and not provided with `-QemuDir`, startup fails with:
+
+```text
+qemu-system-loongarch64.exe was not found
+```
+
+That means the Windows host has not provided a QEMU path yet; it is not a Loongnix image problem.
+
 ## 3. Download The System Image And Create A Work Disk
 
 Run:
@@ -58,17 +72,55 @@ The work disk stores system settings, installed packages, and test state. Do not
 
 ## 4. Start The Visible QEMU VM Window
 
-Double-click:
+If QEMU is installed in a location the script can find, double-click:
 
 ```bat
 Launch-Loongnix-Desktop.cmd
 ```
 
-or run:
+`Launch-Loongnix-Desktop.cmd` is a CMD wrapper and forwards trailing arguments to the PowerShell script. If QEMU is not in a default location, start with:
 
 ```powershell
-.\scripts\Start-Loongnix-Desktop.ps1
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu
 ```
+
+If you run the `.ps1` file directly, Windows may block script execution:
+
+```text
+running scripts is disabled on this system
+```
+
+Use either:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
+```
+
+or this one-shot form without changing the current window policy:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
+```
+
+To reuse a work disk and shared folder from another directory:
+
+```powershell
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu -DiskPath D:\Path\To\loongnix-abi1-work.qcow2 -SharePath D:\Path\To\shared
+```
+
+Common parameters:
+
+| Parameter | Purpose |
+| --- | --- |
+| `-QemuDir` | Directory containing `qemu-system-loongarch64.exe`. |
+| `-DiskPath` | qcow2 work disk to boot. |
+| `-SharePath` | Host folder exposed to the guest. |
+| `-SshPort` | Host SSH forwarding port, default `2222`. |
+| `-Cores` / `-MemoryMB` | VM vCPU count and memory. |
+| `-Snapshot` | Temporary run; disk changes are discarded on exit. |
+| `-NoHostShare` | Disable the host shared disk. |
+| `-NoAudio` | Disable virtual audio. |
 
 Default features:
 
@@ -109,6 +161,18 @@ systemctl enable --now ssh
 ```
 
 Note: `root` is already the administrator account, so do not use `sudo` in a root shell. Some images disable root password login over SSH by default; use the `loongson` account for SSH testing.
+
+## 4.1 Script Role Quick Reference
+
+| Script | Purpose |
+| --- | --- |
+| `Launch-Loongnix-Desktop.cmd` | CMD launcher; calls `scripts\Start-Loongnix-Desktop.ps1` with `-ExecutionPolicy Bypass` and forwards parameters. |
+| `scripts\Start-Loongnix-Desktop.ps1` | Starts the visible QEMU window and configures disk, UEFI, networking, audio, SSH forwarding, and host sharing. |
+| `scripts\Install-Qemu-Windows.ps1` | Installs Windows QEMU with winget. |
+| `scripts\Download-LoongnixImage.ps1` | Downloads/verifies the Loongnix image and creates `images\loongnix-abi1-work.qcow2`. |
+| `scripts\Stop-Loongnix.ps1` | Stops matching QEMU processes. |
+| `scripts\Reset-WorkDisk.ps1` | Recreates the work disk and clears guest test state. |
+| `scripts\Package-Release.ps1` | Packages scripts and docs for Release; excludes QEMU, images, work disks, test software, and logs. |
 
 ## 5. If First Boot Stops At tty1, Enable SSH And Prepare The Desktop Environment
 
@@ -201,16 +265,16 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-Install X11, D-Bus, audio tools, OpenSSH, LightDM, Openbox, LXTerminal, the tint2 panel/tray, notifications, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, windows, audio, notifications, and tray icon acceptance:
+Install X11, D-Bus, audio tools, OpenSSH, LightDM, Openbox, LXTerminal, the tint2 panel/tray, the Xfe graphical file manager, notifications, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, windows, audio, notifications, tray icon acceptance, and graphical file browsing:
 
 You can simulate the install first to confirm that dependencies resolve:
 
 ```bash
-apt-get -s install lightdm openbox obconf lxterminal tint2 notification-daemon
+apt-get -s install lightdm openbox obconf lxterminal tint2 xfe notification-daemon
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
 ```
 
 Add an Openbox autostart file for the `loongson` user so login opens a panel, tray, and terminal immediately:
@@ -222,6 +286,7 @@ pulseaudio --start
 notification-daemon &
 tint2 &
 lxterminal &
+xfe &
 EOF
 chown -R loongson:loongson /home/loongson/.config
 cat >/home/loongson/.dmrc <<'EOF'
@@ -285,10 +350,10 @@ systemctl restart lightdm
 After confirming that the QEMU window shows a graphical login manager, reboot once to verify persistence:
 
 ```bash
-reboot
+systemctl reboot
 ```
 
-After reboot, the QEMU window should enter the LightDM graphical login manager. Log in as `loongson` / `Loongson20` and choose Openbox. After login, the tint2 panel/tray and LXTerminal should appear.
+The normal `loongson` user's PATH usually does not include `/usr/sbin`, so typing `reboot` directly may report command not found. From a root shell, prefer `systemctl reboot`. After reboot, the QEMU window should enter the LightDM graphical login manager. Log in as `loongson` / `Loongson20` and choose Openbox. After login, the tint2 panel/tray, LXTerminal, and Xfe file manager should appear.
 
 When startup succeeds, `systemctl status lightdm --no-pager` should show `active (running)`, and the process list should include `/usr/sbin/lightdm` plus `/usr/lib/xorg/Xorg :0 ... vt7`.
 
@@ -298,19 +363,20 @@ If package names differ in your repository, search first:
 apt-cache search lightdm
 apt-cache search openbox
 apt-cache search tint2
+apt-cache search xfe
 ```
 
 If one package download fails temporarily, retry with:
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 notification-daemon iproute2
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
 ```
 
-In the tested Loongnix repositories, the `xfce4` meta package fails because theme packages required by `xfce4-settings` are not installable, and the `lxde` meta package references `lxpanel/pcmanfm` packages with no candidate version. Do not use the Xfce/LXDE meta packages as the default path. To re-check:
+In the tested Loongnix repositories, `pcmanfm` has no candidate version, the `xfce4` meta package fails because theme packages required by `xfce4-settings` are not installable, the `lxde` meta package references `lxpanel/pcmanfm` packages with no candidate version, and `caja` pulls a heavier MATE dependency set. The default path therefore uses Xfe. To re-check other file managers:
 
 ```bash
 apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
-apt-cache policy xfce4-session xfce4-settings xfwm4 xfdesktop4
+apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 
 ### 5.4 Optional: Install Full KDE/Plasma Desktop
@@ -322,7 +388,7 @@ apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio sddm plasm
 systemctl disable lightdm || true
 systemctl enable sddm
 systemctl set-default graphical.target
-reboot
+systemctl reboot
 ```
 
 The tested Loongnix repositories provide these KDE packages, but a full KDE install downloads nearly 500 MB and is more likely to be interrupted on an unstable network.

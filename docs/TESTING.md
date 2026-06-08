@@ -37,14 +37,14 @@ After entering the graphical desktop, verify from a desktop terminal:
 echo "$DISPLAY"
 echo "$XDG_SESSION_TYPE"
 echo "$XDG_CURRENT_DESKTOP"
-ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|plasmashell|kwin' | grep -v grep
+ps -ef | grep -E 'lightdm|Xorg|openbox|tint2|lxterminal|xfe|plasmashell|kwin' | grep -v grep
 ```
 
 Expected:
 
 - `DISPLAY` is set, for example `:0`.
 - The session is X11, or can at least launch X11 applications.
-- A visible desktop, panel/tray area, and terminal are available. With the recommended lightweight setup, expect `lightdm`, `Xorg`, `openbox`, `tint2`, and `lxterminal`.
+- A visible desktop, panel/tray area, terminal, and graphical file manager are available. With the recommended lightweight setup, expect `lightdm`, `Xorg`, `openbox`, `tint2`, `lxterminal`, and `xfe`.
 
 If SSH works but there is no visible X11 desktop, only command-line diagnostics are possible; Avalonia/X11 rendering, tray, and audio acceptance is not complete.
 
@@ -111,6 +111,7 @@ Start the app from a desktop terminal and verify:
 - Audio is audible, including bells, TTS, or test playback buttons.
 - Network features can reach remote services.
 - Restarting the app and opening it again still works.
+- Xfe can browse the local test directory and the mounted shared-disk directory.
 - Logs do not show native library load failures, `GLIBC` version mismatches, or missing SkiaSharp/HarfBuzzSharp libraries.
 
 ## Audio Checks

@@ -13,6 +13,7 @@ English documentation: [README.en.md](README.en.md)
 - 默认启用用户态网络，宿主机 `127.0.0.1:2222` 转发到虚拟机 SSH `22`。
 - 默认启用 DirectSound + Intel HDA 声卡，适合测试铃声、TTS、音频播放。
 - 默认启用宿主机共享目录，方便把 Actions artifact 或本地包放入虚拟机。
+- 推荐轻量桌面中包含 LXTerminal、tint2 托盘和 Xfe 图形文件管理器，方便人工测试时浏览和复制文件。
 - 使用 virtio 磁盘、virtio 网络、virtio GPU、USB tablet，并调高 QEMU 进程优先级，尽量提高 TCG 模拟效率。
 - 支持快照模式和快速重置工作盘，方便反复测试。
 
@@ -26,6 +27,18 @@ English documentation: [README.en.md](README.en.md)
 | `firmware/` | 工作用 UEFI 变量文件，不提交生成物 |
 | `logs/` | 串口日志和最后一次 QEMU 参数 |
 | `tools/qemu/` | 可选的便携 QEMU 目录，不提交到 Git |
+
+## 脚本作用
+
+| 脚本 | 作用 |
+| --- | --- |
+| `Launch-Loongnix-Desktop.cmd` | Windows CMD 启动入口。它会用 `-ExecutionPolicy Bypass` 调用 `scripts\Start-Loongnix-Desktop.ps1`，并把后面的参数原样转交给 PowerShell 脚本。 |
+| `scripts\Start-Loongnix-Desktop.ps1` | 启动可见 QEMU 窗口，配置 LoongArch VM、工作盘、UEFI 变量、声音、用户态网络、SSH 端口转发和宿主机共享盘。 |
+| `scripts\Install-Qemu-Windows.ps1` | 用 winget 安装已测试过的 Windows QEMU。仓库和 Release 不包含 QEMU。 |
+| `scripts\Download-LoongnixImage.ps1` | 下载并校验 Loongnix Desktop mini qcow2，然后创建可写工作盘。 |
+| `scripts\Stop-Loongnix.ps1` | 停止本方案启动的 QEMU 进程。 |
+| `scripts\Reset-WorkDisk.ps1` | 从基础镜像重建工作盘，会清空虚拟机内已安装的软件和测试状态。 |
+| `scripts\Package-Release.ps1` | 打包脚本和文档用于 Actions/Release；不会打包 QEMU、Loongnix 镜像、工作盘、测试软件或日志。 |
 
 ## 快速开始
 
@@ -72,16 +85,28 @@ SHA256 c960ce8718ce7c8fecd442059ba845b9edc9f0abf90e930b04711f109bf6737c
 
 ### 3. 启动可见 QEMU 窗口
 
-双击：
+如果 QEMU 已由本仓库脚本安装、已经在系统 `PATH` 中，或已复制到 `tools\qemu`，可以双击：
 
 ```bat
 Launch-Loongnix-Desktop.cmd
 ```
 
-或在 PowerShell 中运行：
+`Launch-Loongnix-Desktop.cmd` 可以传参数。如果 QEMU 在其它位置，必须显式传入 QEMU 目录：
 
 ```powershell
-.\scripts\Start-Loongnix-Desktop.ps1
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu
+```
+
+直接运行 PowerShell 脚本时，如果系统提示禁止运行脚本，可以先在当前 PowerShell 窗口执行 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`，或使用下面这种不改变全局策略的写法：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
+```
+
+如果要从另一个目录复用已经配置好的工作盘和共享目录，启动时同时传入：
+
+```powershell
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu -DiskPath D:\Path\To\loongnix-abi1-work.qcow2 -SharePath D:\Path\To\shared
 ```
 
 默认配置：

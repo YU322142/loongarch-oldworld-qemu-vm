@@ -13,6 +13,7 @@ The repository only contains open-source launcher scripts, download/checksum scr
 - User-mode networking by default, forwarding host `127.0.0.1:2222` to guest SSH port `22`.
 - DirectSound + Intel HDA audio by default for bell, TTS, and playback tests.
 - A host shared folder by default for moving Actions artifacts or local builds into the VM.
+- The recommended lightweight desktop includes LXTerminal, the tint2 tray, and the Xfe graphical file manager for manual file browsing and copying.
 - virtio disk, virtio network, virtio GPU, USB tablet, and raised QEMU process priority for better TCG performance.
 - Snapshot mode and quick work-disk reset for repeated testing.
 
@@ -26,6 +27,18 @@ The repository only contains open-source launcher scripts, download/checksum scr
 | `firmware/` | Runtime UEFI variable file; generated file is not committed |
 | `logs/` | Serial logs and last QEMU argument list |
 | `tools/qemu/` | Optional portable QEMU directory; not committed |
+
+## Script Roles
+
+| Script | Purpose |
+| --- | --- |
+| `Launch-Loongnix-Desktop.cmd` | Windows CMD launcher. It calls `scripts\Start-Loongnix-Desktop.ps1` with `-ExecutionPolicy Bypass` and forwards all trailing arguments to the PowerShell script. |
+| `scripts\Start-Loongnix-Desktop.ps1` | Starts the visible QEMU window and configures the LoongArch VM, work disk, UEFI variables, audio, user-mode networking, SSH forwarding, and host shared disk. |
+| `scripts\Install-Qemu-Windows.ps1` | Installs the tested Windows QEMU package with winget. QEMU is not included in this repository or Release. |
+| `scripts\Download-LoongnixImage.ps1` | Downloads and verifies the Loongnix Desktop mini qcow2 image, then creates the writable work disk. |
+| `scripts\Stop-Loongnix.ps1` | Stops QEMU processes started by this setup. |
+| `scripts\Reset-WorkDisk.ps1` | Recreates the work disk from the base image; this removes installed guest packages and test state. |
+| `scripts\Package-Release.ps1` | Packages scripts and docs for Actions/Release; it does not include QEMU, Loongnix images, work disks, test software, or logs. |
 
 ## Quick Start
 
@@ -72,16 +85,28 @@ It then creates `images\loongnix-abi1-work.qcow2` as the writable work disk.
 
 ### 3. Start The Visible QEMU Window
 
-Double-click:
+If QEMU was installed by this repository's script, is already on `PATH`, or was copied to `tools\qemu`, double-click:
 
 ```bat
 Launch-Loongnix-Desktop.cmd
 ```
 
-or run:
+`Launch-Loongnix-Desktop.cmd` accepts forwarded parameters. If QEMU is elsewhere, pass the QEMU directory explicitly:
 
 ```powershell
-.\scripts\Start-Loongnix-Desktop.ps1
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu
+```
+
+If you run the PowerShell script directly and Windows blocks script execution, first run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in the current PowerShell window, or use this one-shot form:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix-Desktop.ps1 -QemuDir D:\Path\To\qemu
+```
+
+To start from one checkout while reusing a configured work disk and shared folder from another directory:
+
+```powershell
+.\Launch-Loongnix-Desktop.cmd -QemuDir D:\Path\To\qemu -DiskPath D:\Path\To\loongnix-abi1-work.qcow2 -SharePath D:\Path\To\shared
 ```
 
 Default profile:
