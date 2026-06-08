@@ -60,7 +60,7 @@ Third-party source and license boundaries are documented in [docs/ASSETS.md](doc
 | `images/` | Loongnix base image and work-disk location; generated files are ignored. |
 | `firmware/` | Runtime UEFI variable file location; generated files are ignored. |
 | `logs/` | Serial logs and last QEMU argument list; runtime logs are ignored. |
-| `tools/qemu/` | Optional portable QEMU directory; ignored. |
+| `tools/qemu/` | Local QEMU copy directory; ignored and not packaged. |
 
 ## Online Packaging
 

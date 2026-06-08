@@ -27,7 +27,17 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\Install-Qemu-Windows.ps1
 ```
 
-如果你已经安装了 QEMU，可以跳过这一步。启动时脚本会尝试从下面位置寻找 QEMU：
+这个脚本会先通过 winget 安装 QEMU，然后默认把安装目录复制一份到本仓库的 `tools\qemu`。这样后续 `Download-LoongnixImage.ps1`、`Start-Loongnix-Desktop.ps1` 和 `Reset-WorkDisk.ps1` 都能优先从项目目录找到 `qemu-img.exe` 和 `qemu-system-loongarch64.exe`。
+
+`tools\qemu` 会被 Git 忽略，也不会打进本项目 Release。不要把 QEMU 二进制提交到仓库；如果要再分发 QEMU，需要遵守 QEMU 及其依赖库的许可证要求。
+
+如果你只想安装到系统位置，不想复制到 `tools\qemu`：
+
+```powershell
+.\scripts\Install-Qemu-Windows.ps1 -NoCopyToRepo
+```
+
+如果你已经安装了 QEMU，也可以重新运行上面的脚本把当前 QEMU 复制到 `tools\qemu`。启动时脚本会尝试从下面位置寻找 QEMU：
 
 - `tools\qemu`
 - `C:\Program Files\qemu`
@@ -180,7 +190,7 @@ systemctl enable --now ssh
 | --- | --- |
 | `Launch-Loongnix-Desktop.cmd` | CMD 启动入口；用 `-ExecutionPolicy Bypass` 调用 `scripts\Start-Loongnix-Desktop.ps1`，并转发参数。 |
 | `scripts\Start-Loongnix-Desktop.ps1` | 启动可见 QEMU 窗口，配置磁盘、UEFI、网络、声音、SSH 转发和共享盘。 |
-| `scripts\Install-Qemu-Windows.ps1` | 用 winget 安装 Windows QEMU。 |
+| `scripts\Install-Qemu-Windows.ps1` | 用 winget 安装 Windows QEMU，并默认复制到 `tools\qemu`。 |
 | `scripts\Download-LoongnixImage.ps1` | 下载/校验 Loongnix 镜像，并创建 `images\loongnix-abi1-work.qcow2`。 |
 | `scripts\Stop-Loongnix.ps1` | 停止匹配的 QEMU 进程。 |
 | `scripts\Reset-WorkDisk.ps1` | 重建工作盘，会清空虚拟机内测试状态。 |

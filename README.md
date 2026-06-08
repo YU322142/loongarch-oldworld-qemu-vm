@@ -60,7 +60,7 @@ Loongnix Desktop mini 镜像可能首次停在 `tty1`。这不是脚本启动失
 | `images/` | Loongnix 基础镜像和工作盘位置；生成物不提交。 |
 | `firmware/` | 工作用 UEFI 变量文件位置；生成物不提交。 |
 | `logs/` | 串口日志和最后一次 QEMU 参数；运行日志不提交。 |
-| `tools/qemu/` | 可选便携 QEMU 目录；不提交。 |
+| `tools/qemu/` | 本地 QEMU 副本目录；不提交，不打包。 |
 
 ## 在线打包
 

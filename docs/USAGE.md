@@ -27,7 +27,17 @@ Use the repository script to install the tested Windows QEMU package:
 .\scripts\Install-Qemu-Windows.ps1
 ```
 
-If QEMU is already installed, skip this step. The launcher searches:
+The script installs QEMU with winget, then copies the installed QEMU directory to this repository's `tools\qemu` by default. This lets `Download-LoongnixImage.ps1`, `Start-Loongnix-Desktop.ps1`, and `Reset-WorkDisk.ps1` find `qemu-img.exe` and `qemu-system-loongarch64.exe` from the project directory first.
+
+`tools\qemu` is ignored by Git and excluded from this project's Release packages. Do not commit QEMU binaries to the repository. If you redistribute QEMU, comply with QEMU and dependency license requirements.
+
+If you only want the system install and do not want a local copy under `tools\qemu`:
+
+```powershell
+.\scripts\Install-Qemu-Windows.ps1 -NoCopyToRepo
+```
+
+If QEMU is already installed, you can run the script again to refresh `tools\qemu`. The launcher searches:
 
 - `tools\qemu`
 - `C:\Program Files\qemu`
@@ -180,7 +190,7 @@ Note: `root` is already the administrator account, so do not use `sudo` in a roo
 | --- | --- |
 | `Launch-Loongnix-Desktop.cmd` | CMD launcher; calls `scripts\Start-Loongnix-Desktop.ps1` with `-ExecutionPolicy Bypass` and forwards parameters. |
 | `scripts\Start-Loongnix-Desktop.ps1` | Starts the visible QEMU window and configures disk, UEFI, networking, audio, SSH forwarding, and host sharing. |
-| `scripts\Install-Qemu-Windows.ps1` | Installs Windows QEMU with winget. |
+| `scripts\Install-Qemu-Windows.ps1` | Installs Windows QEMU with winget and copies it to `tools\qemu` by default. |
 | `scripts\Download-LoongnixImage.ps1` | Downloads/verifies the Loongnix image and creates `images\loongnix-abi1-work.qcow2`. |
 | `scripts\Stop-Loongnix.ps1` | Stops matching QEMU processes. |
 | `scripts\Reset-WorkDisk.ps1` | Recreates the work disk and clears guest test state. |
