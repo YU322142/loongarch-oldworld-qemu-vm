@@ -133,22 +133,41 @@ function Save-FileParallel {
 
             $ProgressPreference = "SilentlyContinue"
             $ExpectedLength = $End - $Start + 1
+            Remove-Item -LiteralPath $PartPath -Force -ErrorAction SilentlyContinue
 
-            for ($Attempt = 0; $Attempt -le $Retries; $Attempt++) {
+            $Attempt = 0
+            $LastLength = 0
+            while ($true) {
                 try {
-                    Remove-Item -LiteralPath $PartPath -Force -ErrorAction SilentlyContinue
+                    $ExistingLength = 0
+                    if (Test-Path -LiteralPath $PartPath) {
+                        $ExistingLength = (Get-Item -LiteralPath $PartPath).Length
+                    }
+
+                    if ($ExistingLength -eq $ExpectedLength) {
+                        return [PSCustomObject]@{
+                            Path = $PartPath
+                            Bytes = $ExistingLength
+                        }
+                    }
+
+                    if ($ExistingLength -gt $ExpectedLength) {
+                        throw "Part length mismatch for $PartPath. Expected at most $ExpectedLength, got $ExistingLength."
+                    }
+
+                    $RequestStart = $Start + $ExistingLength
 
                     $Request = [System.Net.HttpWebRequest]::Create($Uri)
                     $Request.Method = "GET"
-                    $Request.AddRange($Start, $End)
+                    $Request.AddRange($RequestStart, $End)
                     $Response = $Request.GetResponse()
                     try {
                         if ([int]$Response.StatusCode -ne 206) {
-                            throw "Server returned HTTP $([int]$Response.StatusCode) for range $Start-$End."
+                            throw "Server returned HTTP $([int]$Response.StatusCode) for range $RequestStart-$End."
                         }
 
                         $InputStream = $Response.GetResponseStream()
-                        $OutputStream = [System.IO.File]::Open($PartPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
+                        $OutputStream = [System.IO.File]::Open($PartPath, [System.IO.FileMode]::Append, [System.IO.FileAccess]::Write)
                         try {
                             $InputStream.CopyTo($OutputStream)
                         } finally {
@@ -160,7 +179,23 @@ function Save-FileParallel {
                     }
 
                     $ActualLength = (Get-Item -LiteralPath $PartPath).Length
-                    if ($ActualLength -ne $ExpectedLength) {
+                    if ($ActualLength -lt $ExpectedLength) {
+                        if ($ActualLength -gt $LastLength) {
+                            $Attempt = 0
+                            $LastLength = $ActualLength
+                        } else {
+                            if ($Attempt -ge $Retries) {
+                                throw "Part download made no progress for $PartPath. Expected $ExpectedLength, got $ActualLength."
+                            }
+
+                            Start-Sleep -Seconds ([Math]::Min(30, [Math]::Pow(2, $Attempt)))
+                            $Attempt++
+                        }
+
+                        continue
+                    }
+
+                    if ($ActualLength -gt $ExpectedLength) {
                         throw "Part length mismatch for $PartPath. Expected $ExpectedLength, got $ActualLength."
                     }
 
@@ -174,6 +209,7 @@ function Save-FileParallel {
                     }
 
                     Start-Sleep -Seconds ([Math]::Min(30, [Math]::Pow(2, $Attempt)))
+                    $Attempt++
                 }
             }
         }

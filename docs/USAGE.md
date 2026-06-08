@@ -84,7 +84,7 @@ The script uses 64 parallel HTTP Range connections by default to download the Lo
 images\loongnix-abi1-work.qcow2
 ```
 
-You can adjust the download connection count from `1` to `64`. If the network or proxy is unstable, lower it to `16` or `8`; if the server does not support HTTP Range, the script automatically falls back to a single-connection download:
+You can adjust the download connection count from `1` to `64`. If a segment connection is cut short, the script continues that segment from the bytes already written; if the network or proxy remains unstable, lower it to `16` or `8`. If the server does not support HTTP Range, the script automatically falls back to a single-connection download:
 
 ```powershell
 .\scripts\Download-LoongnixImage.ps1 -Connections 16

@@ -84,7 +84,7 @@ qemu-system-loongarch64.exe was not found
 images\loongnix-abi1-work.qcow2
 ```
 
-下载线程数可以按网络情况修改，取值范围是 `1` 到 `64`。如果网络或代理不稳定，可以降到 `16` 或 `8`；如果服务器不支持 HTTP Range，脚本会自动退回单连接下载：
+下载线程数可以按网络情况修改，取值范围是 `1` 到 `64`。如果某个分段连接中途断开，脚本会从该分段已写入的位置继续请求剩余 byte range；如果网络或代理仍然不稳定，可以降到 `16` 或 `8`。如果服务器不支持 HTTP Range，脚本会自动退回单连接下载：
 
 ```powershell
 .\scripts\Download-LoongnixImage.ps1 -Connections 16
