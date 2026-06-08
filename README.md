@@ -28,6 +28,15 @@ English documentation: [README.en.md](README.en.md)
 
 ## 快速开始
 
+完整操作流程见 [docs/USAGE.zh-CN.md](docs/USAGE.zh-CN.md)。第一次使用时建议按下面顺序走：
+
+1. 安装 QEMU。
+2. 下载并校验 Loongnix 镜像。
+3. 启动可见桌面虚拟机。
+4. 把待测软件放入 `shared\`。
+5. 在虚拟机桌面中复制到本地磁盘并运行。
+6. 按 [docs/TESTING.zh-CN.md](docs/TESTING.zh-CN.md) 检查渲染、声音、网络、托盘和重启。
+
 ### 1. 安装 QEMU
 
 推荐使用 winget 安装已测试过的 Windows QEMU：
@@ -93,6 +102,36 @@ Loongnix Desktop mini qcow2 默认账号：
 | --- | --- |
 | `loongson` | `Loongson20` |
 | `root` | `Loongson20` |
+
+## SSH 是否必须
+
+不必须。这个方案的主要用途是可见 X11 桌面测试，用户可以直接在 QEMU 窗口中登录桌面、打开终端并运行软件。
+
+脚本已经自动配置了宿主机到虚拟机的端口转发：
+
+```text
+127.0.0.1:2222 -> guest:22
+```
+
+这只是 QEMU 网络转发规则，不等于虚拟机内的 SSH 服务一定已经启用。如果需要从宿主机 SSH 进入虚拟机，请先在 Loongnix 桌面终端中确认或安装 SSH 服务：
+
+```bash
+sudo apt update
+sudo apt install openssh-server
+sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+```
+
+然后在宿主机连接：
+
+```powershell
+ssh loongson@127.0.0.1 -p 2222
+```
+
+如果 `2222` 被占用，启动虚拟机时可以改端口：
+
+```powershell
+.\scripts\Start-Loongnix-Desktop.ps1 -SshPort 2223
+```
 
 ## 测试软件
 

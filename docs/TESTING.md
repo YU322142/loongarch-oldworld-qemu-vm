@@ -27,6 +27,30 @@ Expected:
 - The desktop session provides an X11 environment.
 - Networking works.
 
+## SSH Checks (Optional)
+
+Visible desktop testing does not depend on SSH. Enable SSH only when you want to run commands, copy files, or collect logs remotely from the host.
+
+The QEMU launcher already configures:
+
+```text
+127.0.0.1:2222 -> guest:22
+```
+
+If SSH is not enabled inside the guest:
+
+```bash
+sudo apt update
+sudo apt install openssh-server
+sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+```
+
+Connect from the host:
+
+```powershell
+ssh loongson@127.0.0.1 -p 2222
+```
+
 ## Shared Folder
 
 If the shared disk is not auto-mounted:

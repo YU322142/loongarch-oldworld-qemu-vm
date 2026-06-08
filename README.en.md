@@ -28,6 +28,15 @@ The repository only contains open-source launcher scripts, download/checksum scr
 
 ## Quick Start
 
+See [docs/USAGE.md](docs/USAGE.md) for the complete workflow. For a first run, use this order:
+
+1. Install QEMU.
+2. Download and verify the Loongnix image.
+3. Start the visible desktop VM.
+4. Put the application under test in `shared\`.
+5. Copy it to the guest local disk and run it from the desktop.
+6. Follow [docs/TESTING.md](docs/TESTING.md) to check rendering, audio, networking, tray behavior, and restart.
+
 ### 1. Install QEMU
 
 Use winget to install the tested Windows QEMU package:
@@ -93,6 +102,36 @@ Loongnix Desktop mini qcow2 default credentials:
 | --- | --- |
 | `loongson` | `Loongson20` |
 | `root` | `Loongson20` |
+
+## Is SSH Required
+
+No. This setup is primarily for visible X11 desktop testing. Users can log in directly through the QEMU window, open a desktop terminal, and run the application there.
+
+The launcher already configures host-to-guest port forwarding:
+
+```text
+127.0.0.1:2222 -> guest:22
+```
+
+This is only a QEMU networking rule; it does not guarantee that the SSH service is enabled inside the guest. If you want to SSH into the VM from the host, first check or install the SSH service inside the Loongnix desktop terminal:
+
+```bash
+sudo apt update
+sudo apt install openssh-server
+sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+```
+
+Then connect from the host:
+
+```powershell
+ssh loongson@127.0.0.1 -p 2222
+```
+
+If `2222` is already in use, choose another forwarded port when starting the VM:
+
+```powershell
+.\scripts\Start-Loongnix-Desktop.ps1 -SshPort 2223
+```
 
 ## Testing An Application
 

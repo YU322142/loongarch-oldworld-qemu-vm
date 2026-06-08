@@ -27,6 +27,30 @@ ping -c 3 github.com
 - 桌面会话应能提供 X11 环境。
 - 能访问网络。
 
+## SSH 检查（可选）
+
+可见桌面测试不依赖 SSH。只有需要从宿主机远程执行命令、复制文件或抓日志时，才需要启用虚拟机内的 SSH 服务。
+
+QEMU 启动脚本默认已经配置：
+
+```text
+127.0.0.1:2222 -> guest:22
+```
+
+如果虚拟机内没有开启 SSH：
+
+```bash
+sudo apt update
+sudo apt install openssh-server
+sudo systemctl enable --now sshd || sudo systemctl enable --now ssh
+```
+
+宿主机连接：
+
+```powershell
+ssh loongson@127.0.0.1 -p 2222
+```
+
 ## 共享目录
 
 如果共享盘没有自动挂载：
