@@ -29,7 +29,7 @@ ping -c 3 github.com
 
 ## 桌面环境预检
 
-如果虚拟机停在 `tty1`，这只说明系统启动到了命令行，不代表已经具备 ClassIsland 图形验收环境。先按 [USAGE.zh-CN.md 第 5 节](USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境) 用 root 启用 SSH，并安装/启用 X11 桌面。
+如果虚拟机停在 `tty1`，这只说明系统启动到了命令行，不代表已经具备 ClassIsland 图形验收环境。先按 [USAGE.zh-CN.md 第 5 节](USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境) 用 root 运行 `shared\setup-loongnix-test-desktop.sh`，或按手动教程启用 SSH 并安装/启用 X11 桌面。
 
 进入图形桌面后，在桌面终端中确认：
 
@@ -88,7 +88,8 @@ ssh loongson@127.0.0.1 -p 2222
 ```bash
 lsblk
 mkdir -p /mnt/hostshare
-mount -t vfat /dev/vdb /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+ls /mnt/hostshare
 ```
 
 挂载命令需要 root 权限；普通用户如果没有 `sudo`，请先 `su -` 或用 root 登录 `tty1`。

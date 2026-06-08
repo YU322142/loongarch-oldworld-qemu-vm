@@ -211,7 +211,51 @@ systemctl enable --now ssh
 
 Some images disable root password login over SSH by default. Use the `loongson` account; run `su -` inside the guest when root privileges are needed.
 
-### 5.2 Check Whether Desktop Components Are Installed
+### 5.2 Use The Shared One-Shot Setup Script (Recommended)
+
+This repository provides a guest-side setup helper in `shared\`:
+
+```text
+shared\setup-loongnix-test-desktop.sh
+```
+
+Inside Loongnix, it performs these actions:
+
+- Enables SSH.
+- Installs X11, LightDM, Openbox, LXTerminal, the tint2 tray, the Xfe graphical file manager, audio tools, and notification support.
+- Generates the `zh_CN.UTF-8` locale, installs Chinese fonts, and sets the system language to Chinese where possible.
+- Sets the time zone to `Asia/Shanghai`.
+- Configures LightDM to use Openbox by default and creates the `display-manager.service` link so reboot does not stop at `tty1`.
+- Enables `loongson` autologin by default for faster repeated testing.
+
+If the VM stops at `tty1`, log in as `root` / `Loongson20`, mount the shared disk, and run:
+
+```bash
+mkdir -p /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+ls /mnt/hostshare
+sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+systemctl reboot
+```
+
+If neither `/dev/vdb1` nor `/dev/vdb` is the shared disk, run `lsblk` and replace it with the correct device. In testing, QEMU's `fat:rw` shared disk usually appears as a `vdb` disk with a `vdb1` partition, so mount `/dev/vdb1` first. The script on the FAT shared disk may not have executable permission, so use `sh path/to/script`.
+
+Useful customizations:
+
+```bash
+# Keep the LightDM login screen instead of autologin.
+AUTOLOGIN=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+
+# Do not change the system language.
+SET_CHINESE=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+
+# Reboot automatically after configuration.
+REBOOT_AFTER=1 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+```
+
+After the script completes and the VM reboots, the QEMU window should enter Openbox. By default, the tint2 panel/tray, LXTerminal, and Xfe file manager should be visible. If the script fails or you want to customize the setup, continue with the manual path below.
+
+### 5.3 Check Whether Desktop Components Are Installed
 
 Run in a root shell:
 
@@ -255,7 +299,7 @@ dpkg --configure -a
 apt --fix-broken install
 ```
 
-### 5.3 Install Lightweight LightDM + Openbox Test Desktop (Recommended)
+### 5.4 Manually Install Lightweight LightDM + Openbox Test Desktop
 
 All desktop installation commands below require root privileges. If you connected through SSH as the `loongson` user, run `su -` inside the guest first. Then check networking and apt repositories. The mini image may not include the `ip` command; use `ifconfig` until `iproute2` is installed:
 
@@ -265,25 +309,38 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-Install X11, D-Bus, audio tools, OpenSSH, LightDM, Openbox, LXTerminal, the tint2 panel/tray, the Xfe graphical file manager, notifications, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, windows, audio, notifications, tray icon acceptance, and graphical file browsing:
+Install X11, D-Bus, audio tools, OpenSSH, LightDM, Openbox, LXTerminal, the tint2 panel/tray, the Xfe graphical file manager, notification support, Chinese fonts, locale tools, and `iproute2`. This is much lighter than KDE/Plasma while still covering Avalonia/X11 rendering, windows, audio, notifications, tray icon acceptance, and graphical file browsing:
 
 You can simulate the install first to confirm that dependencies resolve:
 
 ```bash
-apt-get -s install lightdm openbox obconf lxterminal tint2 xfe notification-daemon
+apt-get -s install lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
-Add an Openbox autostart file for the `loongson` user so login opens a panel, tray, and terminal immediately:
+Configure Chinese locale, Chinese font cache, and the China time zone:
+
+```bash
+sed -i 's/^[#[:space:]]*zh_CN.UTF-8[[:space:]]\+UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen
+grep -q '^zh_CN.UTF-8 UTF-8' /etc/locale.gen || echo 'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen
+locale-gen zh_CN.UTF-8 en_US.UTF-8
+update-locale LANG=zh_CN.UTF-8 LANGUAGE=zh_CN:zh LC_MESSAGES=zh_CN.UTF-8
+ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+echo Asia/Shanghai >/etc/timezone
+fc-cache -f
+```
+
+The Chinese language settings apply fully to new login sessions. Check with `locale` from the `loongson` desktop terminal or SSH session. A root shell entered from an already-open terminal with `su` may still show `POSIX`; that does not mean the desktop user's locale failed.
+
+Add an Openbox autostart file for the `loongson` user so login opens a panel, tray, terminal, and file manager immediately:
 
 ```bash
 mkdir -p /home/loongson/.config/openbox
 cat >/home/loongson/.config/openbox/autostart <<'EOF'
-pulseaudio --start
-notification-daemon &
+pulseaudio --start &
 tint2 &
 lxterminal &
 xfe &
@@ -308,14 +365,17 @@ If `sddm` was installed earlier, prefer LightDM for this lightweight setup so th
 ```bash
 printf '/usr/sbin/lightdm\n' >/etc/X11/default-display-manager
 systemctl disable sddm || true
-systemctl enable lightdm
+ln -sf /lib/systemd/system/lightdm.service /etc/systemd/system/display-manager.service
+systemctl daemon-reload
+systemctl enable lightdm || true
 systemctl set-default graphical.target
 ```
 
-In this Loongnix image, `lightdm.service` may report `static`; that does not necessarily mean the configuration failed. Check the default display-manager file, confirm `sddm` is disabled, and start LightDM:
+In this Loongnix image, `lightdm.service` may report `static`; that does not necessarily mean the configuration failed. When rebooting did not enter the graphical UI during testing, the key missing piece was `/etc/systemd/system/display-manager.service` pointing to `lightdm.service`; the `ln -sf` command above creates it. Check the default display-manager file, the display-manager link, confirm `sddm` is disabled, and start LightDM:
 
 ```bash
 cat /etc/X11/default-display-manager
+ls -l /etc/systemd/system/display-manager.service
 systemctl is-enabled sddm || true
 systemctl start lightdm
 systemctl status lightdm --no-pager
@@ -353,7 +413,7 @@ After confirming that the QEMU window shows a graphical login manager, reboot on
 systemctl reboot
 ```
 
-The normal `loongson` user's PATH usually does not include `/usr/sbin`, so typing `reboot` directly may report command not found. From a root shell, prefer `systemctl reboot`. After reboot, the QEMU window should enter the LightDM graphical login manager. Log in as `loongson` / `Loongson20` and choose Openbox. After login, the tint2 panel/tray, LXTerminal, and Xfe file manager should appear.
+The normal `loongson` user's PATH usually does not include `/usr/sbin`, so typing `reboot` directly may report command not found. From a root shell, prefer `systemctl reboot`. After reboot, the QEMU window should enter the LightDM graphical login manager or autologin to Openbox. After login, the tint2 panel/tray, LXTerminal, and Xfe file manager should appear.
 
 When startup succeeds, `systemctl status lightdm --no-pager` should show `active (running)`, and the process list should include `/usr/sbin/lightdm` plus `/usr/lib/xorg/Xorg :0 ... vt7`.
 
@@ -369,7 +429,7 @@ apt-cache search xfe
 If one package download fails temporarily, retry with:
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 In the tested Loongnix repositories, `pcmanfm` has no candidate version, the `xfce4` meta package fails because theme packages required by `xfce4-settings` are not installable, the `lxde` meta package references `lxpanel/pcmanfm` packages with no candidate version, and `caja` pulls a heavier MATE dependency set. The default path therefore uses Xfe. To re-check other file managers:
@@ -379,7 +439,7 @@ apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
 apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 
-### 5.4 Optional: Install Full KDE/Plasma Desktop
+### 5.5 Optional: Install Full KDE/Plasma Desktop
 
 If you want to test fuller KDE/Plasma desktop behavior, install `sddm`, `plasma-desktop`, `konsole`, and `dolphin`. It is more feature-complete, but the download and install size is much larger, so it is not the default recommendation for this test VM.
 
@@ -393,7 +453,7 @@ systemctl reboot
 
 The tested Loongnix repositories provide these KDE packages, but a full KDE install downloads nearly 500 MB and is more likely to be interrupted on an unstable network.
 
-### 5.5 Why tty Or SSH Is Not Enough
+### 5.6 Why tty Or SSH Is Not Enough
 
 Avalonia/X11 applications such as ClassIsland and OpenRemoteShouter must be accepted in a real X11 desktop session. At minimum, check:
 
@@ -434,13 +494,15 @@ If the shared disk is not mounted automatically:
 
 ```bash
 mkdir -p /mnt/hostshare
-mount -t vfat /dev/vdb /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
 ls /mnt/hostshare
 ```
 
 Mounting requires root privileges. If you are currently the `loongson` user, run `su -` first.
 
-If `/dev/vdb` is not the shared disk, choose the newly added disk shown by `lsblk`.
+If neither `/dev/vdb1` nor `/dev/vdb` is the shared disk, choose the newly added disk shown by `lsblk`. The common tested output is a `vdb` disk containing a `vdb1` partition; in that case mount `/dev/vdb1`.
+
+Note: QEMU's `fat:rw` shared disk is best used by placing files on the host before starting the VM. Files added from Windows while the VM is already running may not appear immediately in the guest; if `ls /mnt/hostshare` does not show a new file, reboot the VM or restart QEMU and check again.
 
 ## 8. Copy To The Guest Local Disk
 

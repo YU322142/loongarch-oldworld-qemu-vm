@@ -211,7 +211,51 @@ systemctl enable --now ssh
 
 部分镜像默认禁止 root 通过 SSH 密码登录，这是正常现象。用 `loongson` 账号 SSH 登录；需要 root 权限时在虚拟机内执行 `su -`。
 
-### 5.2 诊断桌面组件是否已安装
+### 5.2 使用共享目录脚本一键配置（推荐）
+
+本仓库在 `shared\` 中提供 guest 端一键配置脚本：
+
+```text
+shared\setup-loongnix-test-desktop.sh
+```
+
+它会在 Loongnix 内完成下面这些操作：
+
+- 启用 SSH 服务。
+- 安装 X11、LightDM、Openbox、LXTerminal、tint2 托盘、Xfe 图形文件管理器、声音工具和通知支持。
+- 生成 `zh_CN.UTF-8` locale，安装中文字体，并把系统默认语言尽量切到中文。
+- 把时区设置为 `Asia/Shanghai`。
+- 配置 LightDM 默认进入 Openbox，并建立 `display-manager.service` 链接，避免重启后只停在 `tty1`。
+- 默认启用 `loongson` 自动登录，方便反复测试。
+
+如果虚拟机停在 `tty1`，先用 `root` / `Loongson20` 登录，然后挂载共享盘并运行脚本：
+
+```bash
+mkdir -p /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+ls /mnt/hostshare
+sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+systemctl reboot
+```
+
+如果 `/dev/vdb1` 和 `/dev/vdb` 都不是共享盘，先用 `lsblk` 查看新增磁盘，再替换成正确设备。实测 QEMU 的 `fat:rw` 共享盘通常显示为 `vdb` 磁盘和 `vdb1` 分区，优先挂载 `/dev/vdb1`。FAT 共享盘上的脚本不一定有可执行权限，所以推荐用 `sh 脚本路径` 运行。
+
+常用自定义方式：
+
+```bash
+# 保留 LightDM 登录界面，不自动登录
+AUTOLOGIN=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+
+# 不修改系统语言
+SET_CHINESE=0 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+
+# 配置完成后自动重启
+REBOOT_AFTER=1 sh /mnt/hostshare/setup-loongnix-test-desktop.sh
+```
+
+脚本执行完并重启后，QEMU 窗口应进入 Openbox 桌面；默认能看到 tint2 面板/托盘、LXTerminal 和 Xfe 文件管理器。如果脚本执行失败或你想调整安装内容，继续按下面的手动教程操作。
+
+### 5.3 诊断桌面组件是否已安装
 
 在 root shell 中执行：
 
@@ -255,7 +299,7 @@ dpkg --configure -a
 apt --fix-broken install
 ```
 
-### 5.3 安装 LightDM + Openbox 轻量测试桌面（推荐）
+### 5.4 手动安装 LightDM + Openbox 轻量测试桌面
 
 下面安装桌面环境的命令都需要 root 权限。如果你是通过 SSH 连接进来的 `loongson` 用户，请先在虚拟机内执行 `su -` 切到 root。先确认网络和 apt 源可用。mini 镜像可能没有 `ip` 命令，可以用 `ifconfig` 代替；安装 `iproute2` 后才会有 `ip`：
 
@@ -265,25 +309,38 @@ ping -c 3 pkg.loongnix.cn
 apt update
 ```
 
-推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、Openbox、LXTerminal、tint2 面板/托盘、Xfe 图形文件管理器、通知服务和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、窗口、声音、通知、托盘图标和图形文件浏览验收：
+推荐安装 X11、D-Bus、声音工具、OpenSSH、LightDM、Openbox、LXTerminal、tint2 面板/托盘、Xfe 图形文件管理器、通知支持、中文字体、locale 工具和 `iproute2`。这个组合比 KDE/Plasma 轻得多，但仍能覆盖 Avalonia/X11 渲染、窗口、声音、通知、托盘图标和图形文件浏览验收：
 
 可以先模拟安装，确认依赖能解析：
 
 ```bash
-apt-get -s install lightdm openbox obconf lxterminal tint2 xfe notification-daemon
+apt-get -s install lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 ```bash
-apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
+apt install xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
-给 `loongson` 用户添加 Openbox 自动启动项，让登录后直接出现面板、托盘和终端：
+配置中文系统语言、中文字体缓存和中国时区：
+
+```bash
+sed -i 's/^[#[:space:]]*zh_CN.UTF-8[[:space:]]\+UTF-8/zh_CN.UTF-8 UTF-8/' /etc/locale.gen
+grep -q '^zh_CN.UTF-8 UTF-8' /etc/locale.gen || echo 'zh_CN.UTF-8 UTF-8' >> /etc/locale.gen
+locale-gen zh_CN.UTF-8 en_US.UTF-8
+update-locale LANG=zh_CN.UTF-8 LANGUAGE=zh_CN:zh LC_MESSAGES=zh_CN.UTF-8
+ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+echo Asia/Shanghai >/etc/timezone
+fc-cache -f
+```
+
+中文设置应用到新的登录会话后才完整生效。建议在 `loongson` 桌面终端或 SSH 会话中运行 `locale` 检查；从已有终端里切到 root 的 `su` shell 可能仍显示 `POSIX`，这不代表桌面用户语言配置失败。
+
+给 `loongson` 用户添加 Openbox 自动启动项，让登录后直接出现面板、托盘、终端和文件管理器：
 
 ```bash
 mkdir -p /home/loongson/.config/openbox
 cat >/home/loongson/.config/openbox/autostart <<'EOF'
-pulseaudio --start
-notification-daemon &
+pulseaudio --start &
 tint2 &
 lxterminal &
 xfe &
@@ -308,14 +365,17 @@ Loongnix 源里的 `/usr/share/xsessions/openbox.desktop` 使用 `Exec=/usr/bin/
 ```bash
 printf '/usr/sbin/lightdm\n' >/etc/X11/default-display-manager
 systemctl disable sddm || true
-systemctl enable lightdm
+ln -sf /lib/systemd/system/lightdm.service /etc/systemd/system/display-manager.service
+systemctl daemon-reload
+systemctl enable lightdm || true
 systemctl set-default graphical.target
 ```
 
-在这份 Loongnix 镜像中，`lightdm.service` 可能显示为 `static`，这不一定代表配置失败。重点检查默认显示管理器文件、`sddm` 是否已禁用，以及能否实际启动 LightDM：
+在这份 Loongnix 镜像中，`lightdm.service` 可能显示为 `static`，这不一定代表配置失败。实测重启后没有进入图形界面时，关键原因可能是缺少 `/etc/systemd/system/display-manager.service` 到 `lightdm.service` 的链接；上面的 `ln -sf` 会补上它。重点检查默认显示管理器文件、display-manager 链接、`sddm` 是否已禁用，以及能否实际启动 LightDM：
 
 ```bash
 cat /etc/X11/default-display-manager
+ls -l /etc/systemd/system/display-manager.service
 systemctl is-enabled sddm || true
 systemctl start lightdm
 systemctl status lightdm --no-pager
@@ -353,7 +413,7 @@ systemctl restart lightdm
 systemctl reboot
 ```
 
-普通 `loongson` 用户的 PATH 里通常没有 `/usr/sbin`，所以直接敲 `reboot` 可能提示命令不存在；在 root shell 中优先使用 `systemctl reboot`。重启后 QEMU 窗口应进入 LightDM 图形登录器。使用 `loongson` / `Loongson20` 登录 Openbox 会话；登录后应出现 tint2 面板/托盘、LXTerminal 和 Xfe 文件管理器。
+普通 `loongson` 用户的 PATH 里通常没有 `/usr/sbin`，所以直接敲 `reboot` 可能提示命令不存在；在 root shell 中优先使用 `systemctl reboot`。重启后 QEMU 窗口应进入 LightDM 图形登录器或自动进入 Openbox。登录后应出现 tint2 面板/托盘、LXTerminal 和 Xfe 文件管理器。
 
 实测启动成功时，`systemctl status lightdm --no-pager` 会显示 `active (running)`，进程列表里应能看到 `/usr/sbin/lightdm` 和 `/usr/lib/xorg/Xorg :0 ... vt7`。
 
@@ -369,7 +429,7 @@ apt-cache search xfe
 如果下载过程中遇到单个包临时失败，可以先重试：
 
 ```bash
-apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe notification-daemon iproute2
+apt install --fix-missing xorg dbus-x11 openssh-server ffmpeg alsa-utils pulseaudio lightdm openbox obconf lxterminal tint2 xfe xfce4-notifyd libnotify-bin iproute2 locales fonts-noto-cjk fonts-wqy-zenhei fonts-wqy-microhei
 ```
 
 实测当前 Loongnix 源中，`pcmanfm` 没有候选版本，`xfce4` 元包会因为 `xfce4-settings` 依赖的主题包不可安装而失败，`lxde` 元包会引用没有候选版本的 `lxpanel/pcmanfm`，`caja` 会拉入较重的 MATE 依赖。因此默认使用 Xfe；如果要复查其它文件管理器可用性：
@@ -379,7 +439,7 @@ apt-cache policy lightdm lxde lxpanel openbox lxterminal pcmanfm
 apt-cache policy xfe thunar caja dolphin xfce4-session xfce4-settings xfwm4 xfdesktop4
 ```
 
-### 5.4 可选：安装 KDE/Plasma 完整桌面
+### 5.5 可选：安装 KDE/Plasma 完整桌面
 
 如果你想测试更完整的 KDE/Plasma 桌面行为，可以安装 `sddm`、`plasma-desktop`、`konsole`、`dolphin`。它功能更完整，但下载和安装量明显更大，不作为本方案的默认推荐。
 
@@ -393,7 +453,7 @@ systemctl reboot
 
 实测 Loongnix 源中这些 KDE 包存在；但一次完整 KDE 安装下载量接近 500 MB，网络不稳定时更容易中断。
 
-### 5.5 为什么不能只在 tty 或 SSH 中验收
+### 5.6 为什么不能只在 tty 或 SSH 中验收
 
 ClassIsland、OpenRemoteShouter 这类 Avalonia/X11 软件必须在真实 X11 桌面会话里验收。至少需要检查：
 
@@ -434,13 +494,15 @@ lsblk
 
 ```bash
 mkdir -p /mnt/hostshare
-mount -t vfat /dev/vdb /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
 ls /mnt/hostshare
 ```
 
 挂载命令需要 root 权限。如果你当前是 `loongson` 用户，先执行 `su -` 切到 root。
 
-如果 `/dev/vdb` 不是共享盘，根据 `lsblk` 输出选择另一个新增磁盘。
+如果 `/dev/vdb1` 和 `/dev/vdb` 都不是共享盘，根据 `lsblk` 输出选择另一个新增磁盘。实测常见输出是 `vdb` 下面有一个 `vdb1` 分区，此时挂载 `/dev/vdb1`。
+
+注意：QEMU 的 `fat:rw` 共享盘更适合在启动虚拟机前放文件。虚拟机运行中从 Windows 侧新增的文件不一定会立刻出现在 guest 里；如果 `ls /mnt/hostshare` 看不到新文件，重启虚拟机或重新启动 QEMU 后再检查。
 
 ## 8. 复制到虚拟机本地磁盘
 

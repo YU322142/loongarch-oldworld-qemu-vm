@@ -12,7 +12,7 @@ The repository only contains open-source launcher scripts, download/checksum scr
 - The Loongnix Desktop mini image may first stop at `tty1`; the launcher opens a visible VM window, while the X11 desktop must still be installed/enabled inside the guest.
 - User-mode networking by default, forwarding host `127.0.0.1:2222` to guest SSH port `22`.
 - DirectSound + Intel HDA audio by default for bell, TTS, and playback tests.
-- A host shared folder by default for moving Actions artifacts or local builds into the VM.
+- A host shared folder by default for moving Actions artifacts, local builds, and the guest one-shot setup script into the VM.
 - The recommended lightweight desktop includes LXTerminal, the tint2 tray, and the Xfe graphical file manager for manual file browsing and copying.
 - virtio disk, virtio network, virtio GPU, USB tablet, and raised QEMU process priority for better TCG performance.
 - Snapshot mode and quick work-disk reset for repeated testing.
@@ -23,7 +23,7 @@ The repository only contains open-source launcher scripts, download/checksum scr
 | --- | --- |
 | `scripts/` | Start, stop, download, reset, and package scripts |
 | `images/` | Loongnix base image and generated work disk; not committed |
-| `shared/` | Host/guest exchange folder; contents are not committed |
+| `shared/` | Host/guest exchange folder; includes the tracked one-shot setup script, while user test payloads are ignored |
 | `firmware/` | Runtime UEFI variable file; generated file is not committed |
 | `logs/` | Serial logs and last QEMU argument list |
 | `tools/qemu/` | Optional portable QEMU directory; not committed |
@@ -39,6 +39,7 @@ The repository only contains open-source launcher scripts, download/checksum scr
 | `scripts\Stop-Loongnix.ps1` | Stops QEMU processes started by this setup. |
 | `scripts\Reset-WorkDisk.ps1` | Recreates the work disk from the base image; this removes installed guest packages and test state. |
 | `scripts\Package-Release.ps1` | Packages scripts and docs for Actions/Release; it does not include QEMU, Loongnix images, work disks, test software, or logs. |
+| `shared\setup-loongnix-test-desktop.sh` | Guest-side one-shot setup script run as root inside Loongnix; installs the lightweight X11 desktop, enables SSH, configures Chinese locale, LightDM/Openbox, tint2, LXTerminal, and Xfe. |
 
 ## Quick Start
 
@@ -47,7 +48,7 @@ See [docs/USAGE.md](docs/USAGE.md) for the complete workflow. For a first run, u
 1. Install QEMU.
 2. Download and verify the Loongnix image.
 3. Start the visible QEMU VM window.
-4. If Loongnix mini stops at `tty1`, enable SSH as `root`, then install/enable the lightweight LightDM + Openbox test desktop; see [docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment](docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment).
+4. If Loongnix mini stops at `tty1`, log in as `root` and run `shared\setup-loongnix-test-desktop.sh` for the one-shot setup; the manual setup path remains in [docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment](docs/USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment).
 5. Put the application under test in `shared\`.
 6. Copy it to the guest local disk and run it from the desktop.
 7. Follow [docs/TESTING.md](docs/TESTING.md) to check rendering, audio, networking, tray behavior, and restart.
@@ -161,7 +162,7 @@ Then connect from the host as the normal user:
 ssh loongson@127.0.0.1 -p 2222
 ```
 
-Some images disable root password login over SSH by default. That is normal; use the `loongson` account for testing.
+Some images disable root password login over SSH by default. That is normal; use the `loongson` account for testing. Run `su -` inside the guest when administrator privileges are needed.
 
 If `2222` is already in use, choose another forwarded port when starting the VM:
 
@@ -182,10 +183,11 @@ If the shared disk is not auto-mounted in the guest:
 ```bash
 lsblk
 mkdir -p /mnt/hostshare
-mount -t vfat /dev/vdb /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+ls /mnt/hostshare
 ```
 
-The mount commands require root privileges. If you are a normal user and `sudo` is not available, run `su -` first or log in through `tty1` as `root` / `Loongson20`.
+The mount commands require root privileges. If you are a normal user and `sudo` is not available, run `su -` first or log in through `tty1` as `root` / `Loongson20`. In testing, QEMU's `fat:rw` shared disk usually appears as a `vdb` disk with a `vdb1` partition, so mount `/dev/vdb1` first; if `lsblk` shows only `vdb` without a partition, mount `/dev/vdb` instead.
 
 For better runtime speed, copy the app to the guest local disk before extracting or running it:
 

@@ -29,7 +29,7 @@ Expected:
 
 ## Desktop Environment Preflight
 
-If the VM stops at `tty1`, the system has only reached a text console. That is not enough for ClassIsland graphical acceptance. First follow [USAGE.md section 5](USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment) to enable SSH as root and install/enable an X11 desktop.
+If the VM stops at `tty1`, the system has only reached a text console. That is not enough for ClassIsland graphical acceptance. First follow [USAGE.md section 5](USAGE.md#5-if-first-boot-stops-at-tty1-enable-ssh-and-prepare-the-desktop-environment) to run `shared\setup-loongnix-test-desktop.sh` as root, or use the manual path to enable SSH and install/enable an X11 desktop.
 
 After entering the graphical desktop, verify from a desktop terminal:
 
@@ -88,7 +88,8 @@ If the shared disk is not auto-mounted:
 ```bash
 lsblk
 mkdir -p /mnt/hostshare
-mount -t vfat /dev/vdb /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+ls /mnt/hostshare
 ```
 
 Mounting requires root privileges. If `sudo` is not available for a normal user, run `su -` first or log in through `tty1` as root.

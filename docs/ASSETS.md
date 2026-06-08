@@ -43,4 +43,4 @@ For reproducible testing, publish:
 
 ## User Test Software
 
-Files under `shared/` are only for host/guest transfer and are ignored by default. Test packages such as ClassIsland, OpenRemoteShouter, and native library builds should be published under their own repository licenses and Release processes.
+`shared/setup-loongnix-test-desktop.sh` is an MIT-licensed helper from this repository and is included in Git and Release packages. Other files placed under `shared/` are only for host/guest transfer and are ignored by default. Test packages such as ClassIsland, OpenRemoteShouter, and native library builds should be published under their own repository licenses and Release processes.

@@ -12,6 +12,7 @@
 # User test payloads
 /shared/*
 !/shared/README.md
+!/shared/setup-loongnix-test-desktop.sh
 
 # Build output
 /dist/

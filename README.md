@@ -12,7 +12,7 @@ English documentation: [README.en.md](README.en.md)
 - Loongnix Desktop mini 镜像可能首次停在 `tty1`；脚本负责启动可见窗口，X11 桌面环境需要在虚拟机内安装/启用后才会出现。
 - 默认启用用户态网络，宿主机 `127.0.0.1:2222` 转发到虚拟机 SSH `22`。
 - 默认启用 DirectSound + Intel HDA 声卡，适合测试铃声、TTS、音频播放。
-- 默认启用宿主机共享目录，方便把 Actions artifact 或本地包放入虚拟机。
+- 默认启用宿主机共享目录，方便把 Actions artifact、本地包和 guest 一键配置脚本放入虚拟机。
 - 推荐轻量桌面中包含 LXTerminal、tint2 托盘和 Xfe 图形文件管理器，方便人工测试时浏览和复制文件。
 - 使用 virtio 磁盘、virtio 网络、virtio GPU、USB tablet，并调高 QEMU 进程优先级，尽量提高 TCG 模拟效率。
 - 支持快照模式和快速重置工作盘，方便反复测试。
@@ -23,7 +23,7 @@ English documentation: [README.en.md](README.en.md)
 | --- | --- |
 | `scripts/` | 启动、停止、下载镜像、重置磁盘、打包脚本 |
 | `images/` | 放置 Loongnix 基础镜像和生成的工作盘，不提交到 Git |
-| `shared/` | 宿主机和虚拟机之间交换测试包的目录，不提交内容 |
+| `shared/` | 宿主机和虚拟机之间交换测试包的目录；包含可提交的一键配置脚本，其它测试包默认不提交 |
 | `firmware/` | 工作用 UEFI 变量文件，不提交生成物 |
 | `logs/` | 串口日志和最后一次 QEMU 参数 |
 | `tools/qemu/` | 可选的便携 QEMU 目录，不提交到 Git |
@@ -39,6 +39,7 @@ English documentation: [README.en.md](README.en.md)
 | `scripts\Stop-Loongnix.ps1` | 停止本方案启动的 QEMU 进程。 |
 | `scripts\Reset-WorkDisk.ps1` | 从基础镜像重建工作盘，会清空虚拟机内已安装的软件和测试状态。 |
 | `scripts\Package-Release.ps1` | 打包脚本和文档用于 Actions/Release；不会打包 QEMU、Loongnix 镜像、工作盘、测试软件或日志。 |
+| `shared\setup-loongnix-test-desktop.sh` | 在 Loongnix guest 内以 root 运行的一键配置脚本；安装轻量 X11 桌面、启用 SSH、配置中文 locale、LightDM/Openbox、tint2、LXTerminal 和 Xfe。 |
 
 ## 快速开始
 
@@ -47,7 +48,7 @@ English documentation: [README.en.md](README.en.md)
 1. 安装 QEMU。
 2. 下载并校验 Loongnix 镜像。
 3. 启动可见 QEMU 虚拟机窗口。
-4. 如果 Loongnix mini 停在 `tty1`，先用 `root` 启用 SSH，再安装/启用 LightDM + Openbox 轻量测试桌面，见 [docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境](docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境)。
+4. 如果 Loongnix mini 停在 `tty1`，先用 `root` 登录并运行 `shared\setup-loongnix-test-desktop.sh` 一键配置；手动配置教程仍保留在 [docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境](docs/USAGE.zh-CN.md#5-首次启动停在-tty1-时启用-ssh-并准备桌面环境)。
 5. 把待测软件放入 `shared\`。
 6. 在虚拟机桌面中复制到本地磁盘并运行。
 7. 按 [docs/TESTING.zh-CN.md](docs/TESTING.zh-CN.md) 检查渲染、声音、网络、托盘和重启。
@@ -161,7 +162,7 @@ systemctl enable --now ssh
 ssh loongson@127.0.0.1 -p 2222
 ```
 
-部分镜像默认禁止 root 通过 SSH 密码登录；这是正常现象，不影响使用 `loongson` 账号测试。
+部分镜像默认禁止 root 通过 SSH 密码登录；这是正常现象，不影响使用 `loongson` 账号测试。需要管理员权限时，在 guest 里执行 `su -` 切到 root。
 
 如果 `2222` 被占用，启动虚拟机时可以改端口：
 
@@ -182,10 +183,11 @@ shared\
 ```bash
 lsblk
 mkdir -p /mnt/hostshare
-mount -t vfat /dev/vdb /mnt/hostshare
+mount -t vfat /dev/vdb1 /mnt/hostshare || mount -t vfat /dev/vdb /mnt/hostshare
+ls /mnt/hostshare
 ```
 
-上面两条挂载命令需要 root 权限。如果当前是普通用户且系统没有 `sudo`，请先在终端中执行 `su -`，或直接在 `tty1` 使用 `root` / `Loongson20` 登录。
+上面挂载命令需要 root 权限。如果当前是普通用户且系统没有 `sudo`，请先在终端中执行 `su -`，或直接在 `tty1` 使用 `root` / `Loongson20` 登录。实测 QEMU 的 `fat:rw` 共享盘通常显示为 `vdb` 磁盘和 `vdb1` 分区，因此优先挂载 `/dev/vdb1`；如果你的 `lsblk` 只显示 `vdb` 而没有分区，再挂载 `/dev/vdb`。
 
 为了运行效率，建议先复制到虚拟机本地磁盘再解压/运行：
 
