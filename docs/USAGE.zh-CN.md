@@ -94,6 +94,8 @@ images\loongnix-abi1-work.qcow2
 
 这个工作盘会保存系统设置、安装的软件和测试状态。不要把它提交到 Git。
 
+默认工作盘是 qcow2 backing work disk：它只保存相对基础镜像的改动，同时在文件内部记录基础镜像路径。这样体积小、创建快，但如果把整个项目目录移动到新位置，工作盘可能仍然引用旧目录中的基础镜像。新版 `Start-Loongnix-Desktop.ps1` 会在启动前检查 backing file；如果旧 backing 路径不存在、当前 `images\` 目录里有同名基础镜像，会自动执行 `qemu-img rebase -u` 修复路径。手动修复见故障排查中的“移动项目目录后 QEMU 秒退或提示 backing file 找不到”。
+
 创建工作盘需要 Windows 主机上能找到 `qemu-img.exe`。如果你看到 `Verified image` 后又出现 `qemu-img.exe was not found`，说明镜像已经下载并校验成功，只是还没有创建工作盘。先按第 2 节安装 QEMU，或把 QEMU 目录传给脚本：
 
 ```powershell
@@ -169,6 +171,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 
 启动过程中如果 QEMU 窗口暂时黑屏、白屏或没有稳定 guest 画面，请把鼠标指针移到 QEMU 窗口外。实测真正容易触发卡住的是无显示画面阶段鼠标停留在虚拟机窗口内，而不是“最大化”本身。等进入 LightDM 登录器或 Loongnix X11 Test Desktop 并稳定显示后，再进行鼠标操作。如果已经卡住或 QEMU 退出，关闭 QEMU 窗口后重新启动；必要时用 `-Snapshot` 做临时测试，避免启动阶段误操作影响工作盘状态。
 
+在 QEMU 窗口里输入用户名、密码、GRUB 命令、tty 命令或桌面终端命令前，先把 Windows 宿主机输入法切到英文/ASCII。中文输入法可能截获或转换按键，导致密码错误、命令输入异常，或者看起来没有输入进去。
+
 桌面环境稳定显示后可以按需调整窗口，但建议在验收过程中保持窗口大小稳定。实测 SDL 窗口大小变化后可能导致鼠标点击位置偏移，表现为光标看起来在按钮、菜单或托盘图标上，但实际点击落在其它位置。进行托盘、菜单、按钮和窗口拖拽验收时，请先确认鼠标点击位置正常；如果已经出现偏移，先尝试把窗口恢复到原大小，仍不正常就关闭 QEMU 后重新启动。
 
 启动后 PowerShell 没有立刻返回是正常行为：默认脚本会一直等待 QEMU 窗口关闭。需要启动后立即回到 PowerShell 时使用：
@@ -187,6 +191,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 | --- | --- |
 | `loongson` | `Loongson20` |
 | `root` | `Loongson20` |
+
+在 QEMU 窗口直接登录时，请确认 Windows 输入法已经切到英文/ASCII。密码输入通常不会回显；如果一直提示密码错误，先检查输入法状态和 Caps Lock，再重新输入。
 
 桌面测试不依赖 SSH，但首次停在 `tty1` 时，SSH 只能先在 `tty1` 里由 root 启用。启用后，SSH 只是可选的远程命令入口。
 
@@ -871,6 +877,39 @@ OpenRemoteShouter 这类远程/音频应用建议额外测试：
 
 这是正常的。Windows/x86 主机模拟 LoongArch 只能使用 TCG。建议把应用复制到虚拟机本地磁盘后运行，并减少后台程序。
 
+### 移动项目目录后 QEMU 秒退或提示 backing file 找不到
+
+`images\loongnix-abi1-work.qcow2` 默认是基于基础镜像的 qcow2 backing 工作盘。它会在文件内部记录基础镜像路径。把整个目录从例如 `D:\Down\loongarch-oldworld-qemu-vm-20260608` 移动到 `D:\Codex\loongarch-oldworld-qemu-vm-20260608` 后，工作盘可能仍然指向旧路径。典型错误会出现在 `logs\qemu-stderr-*.log` 中：
+
+```text
+Could not open backing file: Could not open 'D:\old-path\images\Loongnix-20.7.rc1.kde.mini.loongarch64.en.qcow2'
+```
+
+新版启动脚本会自动修复“当前 `images\` 目录中存在同名基础镜像”的情况。如果需要手动修复，在 Windows PowerShell 中运行：
+
+```powershell
+$Root = "D:\Codex\loongarch-oldworld-qemu-vm-20260608"
+$QemuImg = "$Root\tools\qemu\qemu-img.exe"
+$Work = "$Root\images\loongnix-abi1-work.qcow2"
+$Base = "$Root\images\Loongnix-20.7.rc1.kde.mini.loongarch64.en.qcow2"
+
+& $QemuImg info $Work
+& $QemuImg rebase -u -f qcow2 -F qcow2 -b $Base $Work
+& $QemuImg info $Work
+```
+
+`rebase -u` 只修改 backing file 路径，不会清空 guest 内已安装的软件和测试状态。只有在工作盘已经不需要保留时，才使用重置脚本重新生成：
+
+```powershell
+.\scripts\Reset-WorkDisk.ps1 -Force -ResetFirmwareVars
+```
+
+如果你经常搬动目录，也可以生成完整复制工作盘，避免依赖 backing file，但会占用更多磁盘空间：
+
+```powershell
+.\scripts\Reset-WorkDisk.ps1 -Force -ResetFirmwareVars -FullCopy
+```
+
 ### 启动过程中黑屏或无显示画面时卡住
 
 如果固件、GRUB、内核加载或桌面初始化阶段窗口暂时黑屏、白屏或没有稳定 guest 画面，请把鼠标指针移到 QEMU 窗口外。实测真正触发卡住的是无显示画面阶段鼠标停留在虚拟机窗口内，而不是“最大化”本身。等进入 LightDM 或 Loongnix X11 Test Desktop 后再进行鼠标操作；如果已经卡住或 QEMU 已退出，关闭 QEMU 窗口并重新启动。
@@ -878,6 +917,10 @@ OpenRemoteShouter 这类远程/音频应用建议额外测试：
 ### 鼠标点击位置和光标位置不一致
 
 如果在桌面运行过程中调整 QEMU 窗口大小，可能出现鼠标点击位置偏移。表现为光标指向按钮、菜单项或托盘图标，但实际点击落点不在光标位置。验收 ClassIsland/OpenRemoteShouter 这类桌面应用时，建议保持窗口大小稳定；已经偏移时，先恢复原窗口大小，仍不正常就关闭 QEMU 并重新启动后再测试鼠标交互。
+
+### QEMU 窗口里输入异常或密码总是错误
+
+先把 Windows 宿主机输入法切到英文/ASCII，再在 QEMU 窗口里输入用户名、密码或命令。中文输入法、中文标点、候选框或快捷键可能截获/转换按键。密码输入没有回显是正常的；如果仍然失败，检查 Caps Lock，并优先用宿主机 SSH 复制粘贴长命令。
 
 ### 设置了图片壁纸但桌面仍是纯色
 

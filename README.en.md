@@ -22,7 +22,9 @@ The Loongnix Desktop mini image may first stop at `tty1`. That does not mean the
 ## Known Notes
 
 - During boot, if the QEMU window is temporarily black, white, or otherwise has no stable guest image, keep the mouse pointer outside the QEMU window. The observed trigger is the mouse staying inside the VM window during a no-display phase, not maximizing by itself.
+- Before typing a username, password, or command inside the QEMU window, switch the Windows host input method to English/ASCII. A Chinese IME may intercept or transform keystrokes, causing wrong passwords, malformed commands, or no visible input.
 - Keep the QEMU window size stable while the desktop session is running. Window-size changes may offset mouse click positions, which affects button, menu, and tray-icon acceptance. If you need to adjust the window, wait until the desktop is fully visible and then re-check mouse click alignment.
+- `images\loongnix-abi1-work.qcow2` is a writable backing work disk. If you move the whole project directory, the work disk may still reference the base image from the old path and QEMU may exit immediately. The updated launcher automatically repairs the backing path when the same base image exists in the current `images\` directory; manual repair is documented in the [full usage guide](docs/USAGE.md#qemu-exits-immediately-after-moving-the-project-directory-or-reports-a-missing-backing-file).
 - Loongnix X11 Test Desktop is a lightweight test session. This repository includes `shared\pic.png`; the one-shot setup script applies it through `xfdesktop4` by default, with `feh` kept only as a fallback. More details are in the [full usage guide](docs/USAGE.md#55-optional-set-the-test-desktop-wallpaper).
 
 ## Important Boundaries

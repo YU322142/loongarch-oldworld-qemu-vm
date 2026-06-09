@@ -25,6 +25,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 ```
 
 `Start-Loongnix-Desktop.ps1` 默认会等到 QEMU 窗口关闭才返回；需要启动后立即回到 PowerShell 时传 `-NoWait`。
+如果移动了整个项目目录，`Start-Loongnix-Desktop.ps1` 会检查工作盘的 qcow2 backing file；当前 `images\` 中有同名基础镜像时会自动用 `qemu-img rebase -u` 修复路径。
+在 QEMU 窗口内输入用户名、密码或命令前，请先把 Windows 输入法切到英文/ASCII，避免中文输入法截获或转换按键。
 
 ## English
 
@@ -51,3 +53,5 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Start-Loongnix
 ```
 
 `Start-Loongnix-Desktop.ps1` waits until the QEMU window closes by default; pass `-NoWait` to return to PowerShell immediately after launch.
+If the whole project directory was moved, `Start-Loongnix-Desktop.ps1` checks the work disk qcow2 backing file and automatically repairs it with `qemu-img rebase -u` when a same-named base image exists in the current `images\` directory.
+Before typing usernames, passwords, or commands inside the QEMU window, switch the Windows input method to English/ASCII so IME handling does not intercept or transform keystrokes.

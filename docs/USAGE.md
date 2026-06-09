@@ -94,6 +94,8 @@ You can adjust the download connection count from `1` to `64`. If a segment conn
 
 The work disk stores system settings, installed packages, and test state. Do not commit it to Git.
 
+By default, the work disk is a qcow2 backing work disk: it stores only changes relative to the base image and records the base image path internally. This keeps the disk small and quick to create, but if you move the whole project directory, the work disk may still reference the base image from the old path. The updated `Start-Loongnix-Desktop.ps1` checks the backing file before startup; if the old backing path is missing and a same-named base image exists in the current `images\` directory, it automatically repairs the path with `qemu-img rebase -u`. Manual repair is documented in troubleshooting under "QEMU Exits Immediately After Moving The Project Directory Or Reports A Missing Backing File".
+
 Creating the work disk requires `qemu-img.exe` on the Windows host. If you see `Verified image` followed by `qemu-img.exe was not found`, the image has already been downloaded and verified; only the work disk is missing. Install QEMU as described in section 2, or pass the QEMU directory:
 
 ```powershell
@@ -169,6 +171,8 @@ Default features:
 
 During boot, if the QEMU window is temporarily black, white, or otherwise has no stable guest image, keep the mouse pointer outside the QEMU window. The observed trigger is the mouse staying inside the VM window during a no-display phase, not maximizing by itself. Wait until LightDM or Loongnix X11 Test Desktop is visible and stable before using the mouse inside the VM. If it already hangs or QEMU exits, close the QEMU window and start again; use `-Snapshot` for temporary tests if you want to avoid boot-time mistakes affecting the work disk.
 
+Before typing a username, password, GRUB command, tty command, or desktop-terminal command inside the QEMU window, switch the Windows host input method to English/ASCII. A Chinese IME may intercept or transform keystrokes, causing wrong passwords, malformed commands, or no visible input.
+
 After the desktop is stable, you may adjust the window if needed, but keep the window size stable during acceptance. SDL window-size changes may offset mouse click positions: the pointer may appear over a button, menu item, or tray icon, while the actual click lands elsewhere. Before tray, menu, button, and window-drag acceptance, confirm that mouse clicks still align. If the pointer is already offset, first restore the original window size; if it remains wrong, close QEMU and start again.
 
 It is normal for PowerShell not to return immediately after startup. By default, the script waits until the QEMU window closes. To return to PowerShell immediately after launch, use:
@@ -187,6 +191,8 @@ Log in to Loongnix:
 | --- | --- |
 | `loongson` | `Loongson20` |
 | `root` | `Loongson20` |
+
+When logging in directly through the QEMU window, make sure the Windows input method is English/ASCII. Password input normally has no echo; if the password keeps failing, check the input method and Caps Lock before retrying.
 
 Desktop testing does not depend on SSH, but when the first boot stops at `tty1`, SSH can only be enabled there by root first. After that, SSH is only an optional remote command entry point.
 
@@ -871,6 +877,39 @@ By default, this creates a qcow2 backing work disk, which is faster and smaller.
 
 This is expected. LoongArch on a Windows/x86 host uses TCG emulation. Copy the app to the guest local disk before running it and reduce host background load.
 
+### QEMU Exits Immediately After Moving The Project Directory Or Reports A Missing Backing File
+
+`images\loongnix-abi1-work.qcow2` is a qcow2 backing work disk by default. It records the base image path inside the qcow2 file. After moving the whole directory, for example from `D:\Down\loongarch-oldworld-qemu-vm-20260608` to `D:\Codex\loongarch-oldworld-qemu-vm-20260608`, the work disk may still point to the old path. A typical error appears in `logs\qemu-stderr-*.log`:
+
+```text
+Could not open backing file: Could not open 'D:\old-path\images\Loongnix-20.7.rc1.kde.mini.loongarch64.en.qcow2'
+```
+
+The updated launcher repairs this automatically when the current `images\` directory contains a same-named base image. To repair it manually from Windows PowerShell:
+
+```powershell
+$Root = "D:\Codex\loongarch-oldworld-qemu-vm-20260608"
+$QemuImg = "$Root\tools\qemu\qemu-img.exe"
+$Work = "$Root\images\loongnix-abi1-work.qcow2"
+$Base = "$Root\images\Loongnix-20.7.rc1.kde.mini.loongarch64.en.qcow2"
+
+& $QemuImg info $Work
+& $QemuImg rebase -u -f qcow2 -F qcow2 -b $Base $Work
+& $QemuImg info $Work
+```
+
+`rebase -u` only changes the backing file path. It does not erase packages or test state inside the guest. Only recreate the work disk if you no longer need its contents:
+
+```powershell
+.\scripts\Reset-WorkDisk.ps1 -Force -ResetFirmwareVars
+```
+
+If you often move the VM directory, you can create a full-copy work disk to avoid backing-file dependency, at the cost of more disk space:
+
+```powershell
+.\scripts\Reset-WorkDisk.ps1 -Force -ResetFirmwareVars -FullCopy
+```
+
 ### QEMU Hangs During A Blank Or No-Display Boot Phase
 
 During firmware, GRUB, kernel loading, or desktop initialization, if the QEMU window is temporarily black, white, or has no stable guest image, keep the mouse pointer outside the QEMU window. The observed trigger is the mouse staying inside the VM window during a no-display phase, not maximizing by itself. Use the mouse inside the VM only after LightDM or Loongnix X11 Test Desktop is visible; if it already hangs or QEMU exits, close the QEMU window and start again.
@@ -878,6 +917,10 @@ During firmware, GRUB, kernel loading, or desktop initialization, if the QEMU wi
 ### Mouse Clicks Do Not Match The Pointer Position
 
 Changing the QEMU window size while the desktop is running can offset mouse click positions. The pointer may appear over a button, menu item, or tray icon, but the actual click lands elsewhere. When accepting desktop apps such as ClassIsland or OpenRemoteShouter, keep the QEMU window size stable. If clicks are already offset, restore the original window size first; if that does not help, close QEMU and start again before testing mouse interactions.
+
+### Input Is Wrong Or Passwords Keep Failing In The QEMU Window
+
+Switch the Windows host input method to English/ASCII before typing usernames, passwords, or commands inside the QEMU window. Chinese IMEs, Chinese punctuation, candidate popups, or IME shortcuts may intercept or transform keystrokes. Password input has no echo by default; if it still fails, check Caps Lock and prefer host-side SSH for copying long commands.
 
 ### Image Wallpaper Is Set But The Desktop Is Still Solid Color
 
