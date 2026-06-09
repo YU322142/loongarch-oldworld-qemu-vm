@@ -106,6 +106,7 @@ cd ~/testapp
 
 Start the app from a desktop terminal and verify:
 
+- A normal ClassIsland result inside the VM does not guarantee that the real-hardware GLX/EGL path is safe. The recommended QEMU profile usually disables hardware OpenGL, so Avalonia is more likely to use software rendering; Kylin/Loongnix real hardware may expose GLX/EGL and can show large red/white blocks on old-world ABI1.0. When testing the ClassIsland LoongArch old-world package, prefer the newer package that defaults to `CLASSISLAND_X11_RENDERING=software`.
 - Main windows render fully, without black screens, transparency errors, top-left black remnants, or obvious crashes.
 - Fonts, scaling, dialogs, settings pages, and lists display correctly.
 - Tray icon appears; left-click/right-click menus work; restoring from tray works.

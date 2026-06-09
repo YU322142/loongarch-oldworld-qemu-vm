@@ -26,6 +26,7 @@ Loongnix Desktop mini 镜像可能首次停在 `tty1`。这不是脚本启动失
 - 桌面环境运行过程中建议保持窗口大小稳定。窗口大小变化后可能出现鼠标点击位置偏移，影响按钮、菜单和托盘图标验收；如果需要调整窗口，先确认桌面已经完整显示，再重新检查鼠标点击位置。
 - `images\loongnix-abi1-work.qcow2` 是带 backing file 的可写工作盘。把整个项目目录移动到新路径后，工作盘可能仍引用旧路径的基础镜像，导致 QEMU 秒退。新版启动脚本会自动修复同目录基础镜像的 backing 路径；手动修复见 [完整使用教程](docs/USAGE.zh-CN.md#移动项目目录后-qemu-秒退或提示-backing-file-找不到)。
 - Loongnix X11 Test Desktop 是轻量测试会话。本仓库自带 `shared\pic.png`，一键配置脚本会默认通过 `xfdesktop4` 把它设为图片壁纸，`feh` 仅作为回退方案。更多说明见 [完整使用教程](docs/USAGE.zh-CN.md#55-可选设置测试桌面壁纸)。
+- 如果 ClassIsland 在本虚拟机中渲染正常，但在 LoongArch/Kylin/Loongnix 实机上出现大面积红色或白色色块，不要仅凭虚拟机结果判断通过。QEMU 默认没有可靠硬件 GL 路径，实机可能走 Avalonia GLX/EGL 后端；请使用 ClassIsland 新的 LoongArch old-world 包，它默认强制 `CLASSISLAND_X11_RENDERING=software`。详见 [测试检查清单](docs/TESTING.zh-CN.md#avalonianet-软件检查)。
 
 ## 重要边界
 

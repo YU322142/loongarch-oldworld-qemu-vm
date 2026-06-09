@@ -106,6 +106,7 @@ cd ~/testapp
 
 从桌面终端启动应用，观察：
 
+- ClassIsland 在虚拟机中渲染正常，不代表实机 GLX/EGL 路径一定正常。QEMU 推荐配置通常关闭硬件 OpenGL，Avalonia 会更容易落到软件渲染；Kylin/Loongnix 实机可能暴露 GLX/EGL，旧世界 ABI1.0 下可能出现大面积红色/白色色块。测试 ClassIsland LoongArch old-world 包时，请优先使用默认 `CLASSISLAND_X11_RENDERING=software` 的新包。
 - 主窗口能完整渲染，没有黑屏、透明异常、左上角残留黑块或明显闪退。
 - 字体、缩放、弹窗、设置页和列表能正常显示。
 - 托盘图标出现，左键/右键菜单可用，托盘恢复窗口可用。
